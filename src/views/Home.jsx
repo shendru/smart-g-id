@@ -1,5 +1,6 @@
 import React from "react";
 import AddGoat from "../components/home/AddGoat";
+import GoatCard from "../components/goat/GoatCard";
 
 function Home() {
   return (
@@ -16,6 +17,7 @@ function Home() {
       <div className="rounded-xl bg-white border-2 min-h-100 border-[#4A6741]/20 shadow-md">
         <div className="grid grid-cols-4 gap-4 p-5">
           {/* This is where we will add the goat when we check the database if there are any goat data */}
+          <GoatCard />
           <AddGoat />
         </div>
       </div>
