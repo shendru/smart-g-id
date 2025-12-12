@@ -22,7 +22,7 @@ function Details({ setStep }) {
 
   return (
     <div className="rounded-xl bg-white border-2 border-[#4A6741]/20 shadow-md">
-      <div className="p-5">
+      <div className="p-5 mt-5">
         <h3 className="text-[#4A6741] font-bold text-lg mb-4">Goat Details</h3>
 
         <div className="space-y-4">

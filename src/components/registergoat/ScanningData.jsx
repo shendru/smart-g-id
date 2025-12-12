@@ -1,138 +1,222 @@
-import { useEffect, useState } from "react";
-import { Loader2, CheckCircle2, Ruler, Weight, ScanLine } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import {
+  Loader2,
+  CheckCircle2,
+  Ruler,
+  Weight,
+  ScanLine,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
+import { waitForSensorData } from "../../lib/signal.js";
+
+// Simple helper for animation delays
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function ScanningData({ setStep }) {
-  // We simulate a 3-step loading process
   const [progress, setProgress] = useState(0);
+  const [error, setError] = useState(false); // Track error state
+  const [retryCount, setRetryCount] = useState(0); // Used to trigger re-runs
+
+  // We use a ref to prevent double-firing in React StrictMode,
+  // but we reset it when retryCount changes.
+  const hasStarted = useRef(false);
 
   useEffect(() => {
-    // 1. Start fetching RFID...
-    const timer1 = setTimeout(() => setProgress(1), 1500); // After 1.5s
+    hasStarted.current = true;
+    setError(false);
+    setProgress(0);
 
-    // 2. Start measuring Weight...
-    const timer2 = setTimeout(() => setProgress(2), 3000); // After 3s
+    const syncHardware = async () => {
+      try {
+        // --- PHASE 1: POLL FOR DATA (WITH TIMEOUT) ---
 
-    // 3. Start measuring Height...
-    const timer3 = setTimeout(() => setProgress(3), 4500); // After 4.5s
+        // Create a timeout promise that rejects after 20 seconds
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Timeout")), 20000)
+        );
 
-    // 4. DONE -> Move to Details screen
-    const timer4 = setTimeout(() => {
-      setStep(3);
-    }, 6000); // Total wait: 6 seconds
+        // Race the sensor polling against the timeout
+        const data = await Promise.race([waitForSensorData(), timeoutPromise]);
 
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-      clearTimeout(timer4);
+        // --- PHASE 2: SAVE DATA ---
+        console.log("Saving Sensor Data:", data);
+        localStorage.setItem(
+          "goat_data",
+          JSON.stringify({
+            uid: data.uid,
+            weight: data.weight,
+            height: data.height,
+          })
+        );
+
+        // --- PHASE 3: PLAY CHECKLIST ANIMATION ---
+        setProgress(1); // RFID Checked
+        await wait(600);
+
+        setProgress(2); // Weight Checked
+        await wait(600);
+
+        setProgress(3); // Height Checked
+        await wait(800);
+
+        // --- PHASE 4: FINISH ---
+        setStep(3); // Move to Details Screen
+      } catch (err) {
+        console.error("Sync failed:", err);
+        setError(true); // Show the "Try Again" screen
+      }
     };
-  }, [setStep]);
+
+    syncHardware();
+
+    // Cleanup function to handle component unmounting
+    return () => {
+      hasStarted.current = false;
+    };
+  }, [setStep, retryCount]); // Re-run when retryCount changes
+
+  const handleRetry = () => {
+    hasStarted.current = false; // Allow the effect to run again
+    setRetryCount((prev) => prev + 1); // Trigger the useEffect
+  };
 
   return (
-    <div className="rounded-xl bg-white border-2 border-[#4A6741]/20 shadow-md">
-      <div className="p-8 mt-8 flex flex-col items-center w-full max-w-sm mx-auto">
-        {/* Spinner Animation */}
-        <div className="relative mb-8">
-          <div className="absolute inset-0 bg-[#4A6741]/10 rounded-full animate-ping"></div>
-          <div className="relative p-4 bg-white rounded-full border-2 border-[#4A6741]/20">
-            <Loader2 className="w-12 h-12 text-[#4A6741] animate-spin" />
-          </div>
-        </div>
-
-        <h3 className="text-[#4A6741] font-bold text-xl mb-6">
-          Syncing with Hardware...
-        </h3>
-
-        {/* The Checklist Animation */}
-        <div className="w-full space-y-4">
-          {/* Item 1: RFID */}
-          <div
-            className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-500 
-                ${
-                  progress >= 1
-                    ? "bg-green-50 border-green-200"
-                    : "bg-gray-50 border-gray-100 opacity-50"
-                }`}
-          >
-            <div className="flex items-center gap-3">
-              <ScanLine
-                className={`w-5 h-5 ${
-                  progress >= 1 ? "text-green-600" : "text-gray-400"
-                }`}
-              />
-              <span
-                className={`text-sm font-medium ${
-                  progress >= 1 ? "text-green-800" : "text-gray-500"
-                }`}
-              >
-                Reading RFID Tag
-              </span>
+    <div
+      className={`rounded-xl bg-white border-2 shadow-md transition-colors duration-300
+        ${error ? "border-red-200" : "border-[#4A6741]/20"}`}
+    >
+      <div className="p-8 mt-8 flex flex-col items-center w-full max-w-sm mx-auto min-h-[400px]">
+        {/* === ERROR VIEW === */}
+        {error ? (
+          <div className="flex flex-col items-center animate-in fade-in slide-in-from-bottom-4">
+            <div className="p-4 rounded-full bg-red-50 mb-6">
+              <AlertCircle className="w-12 h-12 text-red-500" />
             </div>
-            {progress >= 1 && (
-              <CheckCircle2 className="w-5 h-5 text-green-600 animate-in zoom-in" />
-            )}
-          </div>
 
-          {/* Item 2: Weight */}
-          <div
-            className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-500 
-                ${
-                  progress >= 2
-                    ? "bg-green-50 border-green-200"
-                    : "bg-gray-50 border-gray-100 opacity-50"
-                }`}
-          >
-            <div className="flex items-center gap-3">
-              <Weight
-                className={`w-5 h-5 ${
-                  progress >= 2 ? "text-green-600" : "text-gray-400"
-                }`}
-              />
-              <span
-                className={`text-sm font-medium ${
-                  progress >= 2 ? "text-green-800" : "text-gray-500"
-                }`}
-              >
-                Measuring Weight
-              </span>
+            <h3 className="text-red-600 font-bold text-xl mb-2">Scan Failed</h3>
+            <p className="text-center text-gray-500 text-sm mb-8 px-4">
+              We couldn't detect the sensor data in time. Please check if the
+              ESP32 is powered on.
+            </p>
+
+            <button
+              onClick={handleRetry}
+              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg font-semibold transition-all active:scale-95 shadow-lg shadow-red-200"
+            >
+              <RefreshCw className="w-5 h-5" />
+              Try Again
+            </button>
+          </div>
+        ) : (
+          /* === LOADING VIEW === */
+          <>
+            {/* Spinner Animation */}
+            <div className="relative mb-8">
+              <div className="absolute inset-0 bg-[#4A6741]/10 rounded-full animate-ping"></div>
+              <div className="relative p-4 bg-white rounded-full border-2 border-[#4A6741]/20">
+                <Loader2 className="w-12 h-12 text-[#4A6741] animate-spin" />
+              </div>
             </div>
-            {progress >= 2 && (
-              <CheckCircle2 className="w-5 h-5 text-green-600 animate-in zoom-in" />
-            )}
-          </div>
 
-          {/* Item 3: Height */}
-          <div
-            className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-500 
-                ${
-                  progress >= 3
-                    ? "bg-green-50 border-green-200"
-                    : "bg-gray-50 border-gray-100 opacity-50"
-                }`}
-          >
-            <div className="flex items-center gap-3">
-              <Ruler
-                className={`w-5 h-5 ${
-                  progress >= 3 ? "text-green-600" : "text-gray-400"
-                }`}
-              />
-              <span
-                className={`text-sm font-medium ${
-                  progress >= 3 ? "text-green-800" : "text-gray-500"
-                }`}
+            <h3 className="text-[#4A6741] font-bold text-xl mb-6">
+              {progress === 0 ? "Waiting for Tag Scan..." : "Syncing Data..."}
+            </h3>
+
+            {/* The Checklist Animation */}
+            <div className="w-full space-y-4">
+              {/* Item 1: RFID */}
+              <div
+                className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-500 
+                    ${
+                      progress >= 1
+                        ? "bg-green-50 border-green-200"
+                        : "bg-gray-50 border-gray-100 opacity-50"
+                    }`}
               >
-                Calibrating Height
-              </span>
-            </div>
-            {progress >= 3 && (
-              <CheckCircle2 className="w-5 h-5 text-green-600 animate-in zoom-in" />
-            )}
-          </div>
-        </div>
+                <div className="flex items-center gap-3">
+                  <ScanLine
+                    className={`w-5 h-5 ${
+                      progress >= 1 ? "text-green-600" : "text-gray-400"
+                    }`}
+                  />
+                  <span
+                    className={`text-sm font-medium ${
+                      progress >= 1 ? "text-green-800" : "text-gray-500"
+                    }`}
+                  >
+                    RFID Tag Detected
+                  </span>
+                </div>
+                {progress >= 1 && (
+                  <CheckCircle2 className="w-5 h-5 text-green-600 animate-in zoom-in" />
+                )}
+              </div>
 
-        <p className="text-xs text-gray-400 mt-6 animate-pulse">
-          Do not remove goat from chute...
-        </p>
+              {/* Item 2: Weight */}
+              <div
+                className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-500 
+                    ${
+                      progress >= 2
+                        ? "bg-green-50 border-green-200"
+                        : "bg-gray-50 border-gray-100 opacity-50"
+                    }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Weight
+                    className={`w-5 h-5 ${
+                      progress >= 2 ? "text-green-600" : "text-gray-400"
+                    }`}
+                  />
+                  <span
+                    className={`text-sm font-medium ${
+                      progress >= 2 ? "text-green-800" : "text-gray-500"
+                    }`}
+                  >
+                    Weight Captured
+                  </span>
+                </div>
+                {progress >= 2 && (
+                  <CheckCircle2 className="w-5 h-5 text-green-600 animate-in zoom-in" />
+                )}
+              </div>
+
+              {/* Item 3: Height */}
+              <div
+                className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-500 
+                    ${
+                      progress >= 3
+                        ? "bg-green-50 border-green-200"
+                        : "bg-gray-50 border-gray-100 opacity-50"
+                    }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Ruler
+                    className={`w-5 h-5 ${
+                      progress >= 3 ? "text-green-600" : "text-gray-400"
+                    }`}
+                  />
+                  <span
+                    className={`text-sm font-medium ${
+                      progress >= 3 ? "text-green-800" : "text-gray-500"
+                    }`}
+                  >
+                    Height Calibrated
+                  </span>
+                </div>
+                {progress >= 3 && (
+                  <CheckCircle2 className="w-5 h-5 text-green-600 animate-in zoom-in" />
+                )}
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-400 mt-6 animate-pulse">
+              {progress === 0
+                ? "Please scan RFID tag on the reader..."
+                : "Do not remove goat from chute..."}
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
