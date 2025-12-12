@@ -6,6 +6,7 @@ import { Routes, Route } from "react-router-dom";
 import Home from "./views/Home";
 import RegisterGoat from "./views/RegisterGoat";
 import GoatProfile from "./components/goat/GoatProfile";
+import Auth from "./views/Auth";
 
 function App() {
   const [count, setCount] = useState(0);
@@ -16,6 +17,7 @@ function App() {
 
       <main className="px-4 py-6 max-w-4xl mx-auto flex h-[calc(100vh-76px)] flex-col gap-5">
         <Routes>
+          {/* <Route path="/" element={<Auth />} /> */}
           <Route path="/" element={<Home />} />
           <Route path="/registergoat" element={<RegisterGoat />} />
 
