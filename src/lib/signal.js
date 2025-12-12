@@ -2,7 +2,7 @@
 // CONFIGURATION
 // ==========================================
 const CAMERA_IP = "http://10.15.33.35"; 
-const SENSOR_IP = "http://192.168.1.106"; 
+const SENSOR_IP = "http://10.15.33.48"; 
 
 // Helper
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
