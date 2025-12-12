@@ -1,8 +1,32 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 function Details({ setStep }) {
   const [goatName, setGoatName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // NEW: State for Hardware Data
+  const [sensorData, setSensorData] = useState({
+    weight: "",
+    height: "",
+    uid: "",
+  });
+
+  // 1. Load Data from LocalStorage on Mount
+  useEffect(() => {
+    const savedData = localStorage.getItem("goat_data");
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        setSensorData({
+          weight: parsed.weight || "0.00",
+          height: parsed.height || "0",
+          uid: parsed.uid || "Unknown",
+        });
+      } catch (err) {
+        console.error("Failed to parse goat data", err);
+      }
+    }
+  }, []);
 
   const handleRandomName = async () => {
     setIsLoading(true);
@@ -54,38 +78,12 @@ function Details({ setStep }) {
                       : "bg-gray-100 text-[#4A6741] hover:bg-gray-200 border-gray-300"
                   }`}
               >
-                {isLoading ? (
-                  <>
-                    <svg
-                      className="animate-spin h-4 w-4 text-[#4A6741]"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    Fetching...
-                  </>
-                ) : (
-                  <>🎲 Random</>
-                )}
+                {isLoading ? <>Fetching...</> : <>🎲 Random</>}
               </button>
             </div>
           </div>
 
-          {/* 2. Gender & Birth Date (Side by Side for better layout) */}
+          {/* 2. Gender & Birth Date */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label
@@ -143,45 +141,58 @@ function Details({ setStep }) {
 
           <hr className="border-gray-200 my-4" />
 
-          {/* 4. Hardware Detected Fields */}
+          {/* 4. Hardware Detected Fields (AUTO-FILLED) */}
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
             Detected from Hardware (ESP32)
           </p>
           <div className="grid grid-cols-2 gap-4">
+            {/* WEIGHT */}
             <div className="space-y-2">
               <label className="block font-medium text-sm text-[#4A6741]">
                 Weight (kg)
               </label>
-              <input
-                type="text"
-                value="Waiting..."
-                readOnly
-                className="w-full p-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-500 cursor-not-allowed select-none"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={sensorData.weight}
+                  readOnly
+                  className="w-full p-2 pl-8 bg-green-50 border border-green-200 rounded-lg text-green-800 font-bold cursor-not-allowed"
+                />
+                <WeightIcon className="w-4 h-4 absolute left-2.5 top-3 text-green-600" />
+              </div>
             </div>
+
+            {/* HEIGHT */}
             <div className="space-y-2">
               <label className="block font-medium text-sm text-[#4A6741]">
                 Height (cm)
               </label>
-              <input
-                type="text"
-                value="Waiting..."
-                readOnly
-                className="w-full p-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-500 cursor-not-allowed select-none"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={sensorData.height}
+                  readOnly
+                  className="w-full p-2 pl-8 bg-green-50 border border-green-200 rounded-lg text-green-800 font-bold cursor-not-allowed"
+                />
+                <RulerIcon className="w-4 h-4 absolute left-2.5 top-3 text-green-600" />
+              </div>
             </div>
           </div>
 
+          {/* RFID */}
           <div className="space-y-2">
             <label className="block font-medium text-sm text-[#4A6741]">
               RFID Tag ID
             </label>
-            <input
-              type="text"
-              value="SCAN_WAITING..."
-              readOnly
-              className="w-full p-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-500 font-mono text-sm cursor-not-allowed select-none"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={sensorData.uid}
+                readOnly
+                className="w-full p-2 pl-8 bg-gray-100 border border-gray-300 rounded-lg text-gray-600 font-mono text-sm cursor-not-allowed"
+              />
+              <ScanIcon className="w-4 h-4 absolute left-2.5 top-3 text-gray-500" />
+            </div>
           </div>
 
           {/* 5. Proceed Button */}
@@ -212,5 +223,64 @@ function Details({ setStep }) {
     </div>
   );
 }
+
+// Simple Icons Components (to avoid import errors if you don't have Lucide here)
+const WeightIcon = (props) => (
+  <svg
+    {...props}
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="5" r="3" />
+    <path d="M6.5 8a2 2 0 0 0-1.905 1.457L2.1 18.5A2 2 0 0 0 4 21h16a2 2 0 0 0 1.9-2.5l-2.495-9.043A2 2 0 0 0 17.5 8z" />
+  </svg>
+);
+const RulerIcon = (props) => (
+  <svg
+    {...props}
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z" />
+    <path d="m14.5 12.5 2-2" />
+    <path d="m11.5 9.5 2-2" />
+    <path d="m8.5 6.5 2-2" />
+    <path d="m17.5 15.5 2-2" />
+  </svg>
+);
+const ScanIcon = (props) => (
+  <svg
+    {...props}
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+    <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+    <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+    <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+    <rect width="8" height="8" x="8" y="8" rx="1" />
+  </svg>
+);
 
 export default Details;
