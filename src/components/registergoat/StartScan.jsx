@@ -3,7 +3,7 @@ import { Radio, Info } from "lucide-react";
 function StartScan({ setStep }) {
   return (
     <div className="rounded-xl bg-white border-2 border-[#4A6741]/20 shadow-md">
-      <div className="p-5 flex flex-col items-center">
+      <div className="p-5 mt-5 flex flex-col items-center">
         {/* Main Icon */}
         <div className="p-6 rounded-full bg-[#F5F1E8] mb-6 relative">
           <Radio className="text-[#7A6E5C] h-16 w-16" />

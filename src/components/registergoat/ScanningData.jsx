@@ -30,7 +30,7 @@ function ScanningData({ setStep }) {
 
   return (
     <div className="rounded-xl bg-white border-2 border-[#4A6741]/20 shadow-md">
-      <div className="p-8 flex flex-col items-center w-full max-w-sm mx-auto">
+      <div className="p-8 mt-8 flex flex-col items-center w-full max-w-sm mx-auto">
         {/* Spinner Animation */}
         <div className="relative mb-8">
           <div className="absolute inset-0 bg-[#4A6741]/10 rounded-full animate-ping"></div>

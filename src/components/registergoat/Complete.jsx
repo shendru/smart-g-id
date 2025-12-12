@@ -30,7 +30,7 @@ function Complete() {
         style={{ width: `${(timeLeft / 10) * 100}%` }}
       />
 
-      <div className="p-8 flex flex-col items-center text-center">
+      <div className="p-8 mt-8 flex flex-col items-center text-center">
         {/* Success Icon with Bounce Animation */}
         <div className="p-6 rounded-full bg-[#E8F5E9] mb-6 animate-bounce">
           <CheckCircle className="text-[#4A6741] h-16 w-16" />
