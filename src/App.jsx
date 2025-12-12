@@ -12,23 +12,18 @@ function App() {
   const [count, setCount] = useState(0);
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
       <Nav />
 
-      <main className="px-4 py-6 max-w-4xl mx-auto flex h-[calc(100vh-76px)] flex-col gap-5">
+      <main className="flex-1 w-full max-w-4xl mx-auto px-4 py-6 flex flex-col gap-5">
         <Routes>
           {/* <Route path="/" element={<Auth />} /> */}
           <Route path="/" element={<Home />} />
           <Route path="/registergoat" element={<RegisterGoat />} />
-
-          {/* 2. Add the Dynamic Route 
-            The ":id" part tells React Router that this part of the URL is a variable.
-            So /goatprofile/1, /goatprofile/99, etc. will all load this component.
-          */}
           <Route path="/goatprofile/:id" element={<GoatProfile />} />
         </Routes>
       </main>
-    </>
+    </div>
   );
 }
 

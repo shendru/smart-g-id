@@ -4,7 +4,20 @@ function Details({ setStep }) {
   const [goatName, setGoatName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // NEW: State for Hardware Data
+  // === Health Status State ===
+  const [healthTags, setHealthTags] = useState(["Healthy"]);
+  const [healthInput, setHealthInput] = useState("");
+
+  const commonStatuses = [
+    "Healthy",
+    "Sick",
+    "Injured",
+    "Pregnant",
+    "Quarantined",
+    "Under Observation",
+  ];
+
+  // === Hardware Data State ===
   const [sensorData, setSensorData] = useState({
     weight: "",
     height: "",
@@ -41,6 +54,26 @@ function Details({ setStep }) {
       setGoatName("Goaty McGoatface");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // === HEALTH TAG FUNCTIONS ===
+  const addTag = (tag) => {
+    const formattedTag = tag.trim();
+    if (formattedTag && !healthTags.includes(formattedTag)) {
+      setHealthTags([...healthTags, formattedTag]);
+    }
+    setHealthInput("");
+  };
+
+  const removeTag = (tagToRemove) => {
+    setHealthTags(healthTags.filter((tag) => tag !== tagToRemove));
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addTag(healthInput);
     }
   };
 
@@ -139,12 +172,87 @@ function Details({ setStep }) {
             </select>
           </div>
 
+          {/* 4. HEALTH STATUS */}
+          <div className="space-y-2">
+            <label className="block font-medium text-sm text-[#4A6741]">
+              Health Status *
+            </label>
+
+            <div className="p-2 border border-gray-300 rounded-lg bg-white focus-within:ring-2 focus-within:ring-[#4A6741] focus-within:border-transparent flex flex-wrap gap-2">
+              {healthTags.map((tag, index) => (
+                <span
+                  key={index}
+                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium 
+                    ${
+                      tag === "Healthy"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-orange-100 text-orange-800"
+                    }`}
+                >
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => removeTag(tag)}
+                    className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full text-current hover:bg-black/10 focus:outline-none"
+                  >
+                    <span className="sr-only">Remove</span>
+                    &times;
+                  </button>
+                </span>
+              ))}
+
+              <input
+                type="text"
+                value={healthInput}
+                onChange={(e) => setHealthInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="flex-1 min-w-[120px] outline-none text-sm bg-transparent"
+                placeholder={
+                  healthTags.length === 0 ? "Type status & Hit Enter..." : ""
+                }
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-2 mt-2">
+              {commonStatuses.map((status) => (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => addTag(status)}
+                  className={`text-xs px-3 py-1 rounded-full border transition-all
+                      ${
+                        healthTags.includes(status)
+                          ? "bg-[#4A6741] text-white border-[#4A6741] opacity-50 cursor-default"
+                          : "bg-gray-50 text-gray-600 border-gray-200 hover:border-[#4A6741] hover:text-[#4A6741]"
+                      }`}
+                  disabled={healthTags.includes(status)}
+                >
+                  + {status}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <hr className="border-gray-200 my-4" />
 
-          {/* 4. Hardware Detected Fields (AUTO-FILLED) */}
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-            Detected from Hardware (ESP32)
-          </p>
+          {/* 5. Hardware Detected Fields */}
+          <div className="flex items-center justify-between mt-6 mb-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Detected from Hardware (ESP32)
+            </p>
+
+            {/* === UPDATED: RETRY SCAN BUTTON === */}
+            <button
+              type="button"
+              onClick={() => setStep(1)} // Go back to Step 1 (Scanning)
+              className="group flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-[#4A6741] bg-white border-2 border-[#4A6741] rounded-lg shadow-sm hover:bg-[#4A6741] hover:text-white transition-all duration-200 active:scale-95"
+            >
+              {/* Icon spins on hover */}
+              <RetryIcon className="w-4 h-4 transition-transform group-hover:rotate-180" />
+              Retry Scan
+            </button>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             {/* WEIGHT */}
             <div className="space-y-2">
@@ -156,9 +264,9 @@ function Details({ setStep }) {
                   type="text"
                   value={sensorData.weight}
                   readOnly
-                  className="w-full p-2 pl-8 bg-green-50 border border-green-200 rounded-lg text-green-800 font-bold cursor-not-allowed"
+                  className="w-full p-2 pl-8 bg-gray-100 border border-gray-300 rounded-lg text-gray-600 font-mono text-sm cursor-not-allowed"
                 />
-                <WeightIcon className="w-4 h-4 absolute left-2.5 top-3 text-green-600" />
+                <WeightIcon className="w-4 h-4 absolute left-2.5 top-3 text-gray-500" />
               </div>
             </div>
 
@@ -172,9 +280,9 @@ function Details({ setStep }) {
                   type="text"
                   value={sensorData.height}
                   readOnly
-                  className="w-full p-2 pl-8 bg-green-50 border border-green-200 rounded-lg text-green-800 font-bold cursor-not-allowed"
+                  className="w-full p-2 pl-8 bg-gray-100 border border-gray-300 rounded-lg text-gray-600 font-mono text-sm cursor-not-allowed"
                 />
-                <RulerIcon className="w-4 h-4 absolute left-2.5 top-3 text-green-600" />
+                <RulerIcon className="w-4 h-4 absolute left-2.5 top-3 text-gray-500" />
               </div>
             </div>
           </div>
@@ -195,7 +303,7 @@ function Details({ setStep }) {
             </div>
           </div>
 
-          {/* 5. Proceed Button */}
+          {/* 6. Proceed Button */}
           <div className="pt-4">
             <button
               className="w-full bg-[#4A6741] hover:bg-[#3a5233] text-white font-bold py-3 px-4 rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2"
@@ -224,7 +332,26 @@ function Details({ setStep }) {
   );
 }
 
-// Simple Icons Components (to avoid import errors if you don't have Lucide here)
+// Simple Icons Components
+const RetryIcon = (props) => (
+  <svg
+    {...props}
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+    <path d="M16 16h5v5" />
+  </svg>
+);
 const WeightIcon = (props) => (
   <svg
     {...props}
