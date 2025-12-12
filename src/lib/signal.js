@@ -4,9 +4,7 @@
 const CAMERA_IP = "http://10.15.33.35"; 
 const SENSOR_IP = "http://192.168.1.106"; 
 
-// ==========================================
-// HELPERS
-// ==========================================
+// Helper
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // ==========================================
@@ -14,8 +12,6 @@ const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 // ==========================================
 export const captureImage = async () => {
   try {
-    console.log(`Signal: Sending capture request to ${CAMERA_IP}...`);
-    
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); 
 
@@ -27,12 +23,10 @@ export const captureImage = async () => {
     clearTimeout(timeoutId);
 
     if (!response.ok) throw new Error(`Camera Error: ${response.statusText}`);
-
     const data = await response.json();
     if (data.status !== "ok") throw new Error("Camera reported internal error.");
 
     return data.image;
-
   } catch (error) {
     console.error("Signal (Camera) Error:", error);
     throw error;
@@ -40,23 +34,19 @@ export const captureImage = async () => {
 };
 
 // ==========================================
-// SENSOR FUNCTION (Updated with Abort Logic)
+// SENSOR FUNCTION (Fixing the Loop Crash)
 // ==========================================
-/**
- * Polls the Sensor ESP32.
- * @param {AbortSignal} [abortSignal] - Allows the caller to stop the loop
- */
 export const waitForSensorData = async (abortSignal) => {
   console.log(`Signal: Starting poll for sensor data at ${SENSOR_IP}...`);
 
   while (true) {
-    // 1. CHECK IF CANCELLED
+    // 1. Check if the UI Cancelled/Timed Out
     if (abortSignal?.aborted) {
-      console.log("Signal: Polling stopped by user/timeout.");
-      throw new Error("Polling cancelled");
+      throw new Error("Polling cancelled by timeout");
     }
 
     try {
+      // 2. Short request timeout (2s) so we don't hang
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 2000); 
 
@@ -68,7 +58,6 @@ export const waitForSensorData = async (abortSignal) => {
 
       if (response.ok) {
         const data = await response.json();
-        
         if (data.status === "ok") {
           console.log("Signal: Sensor Data Received!", data);
           return {
@@ -78,14 +67,13 @@ export const waitForSensorData = async (abortSignal) => {
           };
         }
       }
-
     } catch (error) {
-      // Ignore connection errors and keep retrying...
-      // UNLESS the main signal was aborted during the fetch
-      if (abortSignal?.aborted) throw new Error("Polling cancelled");
+      // IMPORTANT: We swallow errors here so the loop DOES NOT break.
+      // We only break if the MAIN abortSignal says so.
+      // console.warn("Sensor not ready yet..."); 
     }
 
-    // 2. Wait 1 second before asking again
+    // 3. Wait 1 second before retrying
     await wait(1000);
   }
 };

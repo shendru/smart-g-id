@@ -16,31 +16,31 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 function ScanningData({ setStep }) {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
+  const [retryTrigger, setRetryTrigger] = useState(0); // Used to force re-run
 
-  // We keep a reference to the AbortController so we can call .abort() anytime
   const abortControllerRef = useRef(null);
 
   useEffect(() => {
+    // 1. Reset State on Start
     setError(false);
     setProgress(0);
 
-    // 1. Create a new controller for this specific attempt
+    // 2. Create a new AbortController for this specific attempt
     abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
+    const currentSignal = abortControllerRef.current.signal;
 
     const syncHardware = async () => {
       try {
-        // --- PHASE 1: POLL FOR DATA (WITH TIMEOUT) ---
+        console.log("Starting 20s Scan Window...");
 
-        // This promise rejects after 20 seconds
+        // --- PHASE 1: POLLING WITH 20s TIMEOUT ---
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error("Timeout")), 20000)
         );
 
-        // We pass 'signal' to waitForSensorData so it knows when to stop
+        // Pass 'currentSignal' to waitForSensorData
         const data = await Promise.race([
-          waitForSensorData(signal),
+          waitForSensorData(currentSignal),
           timeoutPromise,
         ]);
 
@@ -55,13 +55,11 @@ function ScanningData({ setStep }) {
           })
         );
 
-        // --- PHASE 3: PLAY CHECKLIST ANIMATION ---
+        // --- PHASE 3: ANIMATION ---
         setProgress(1);
         await wait(600);
-
         setProgress(2);
         await wait(600);
-
         setProgress(3);
         await wait(800);
 
@@ -69,28 +67,28 @@ function ScanningData({ setStep }) {
         setStep(3);
       } catch (err) {
         console.error("Sync failed:", err);
-
-        // CRITICAL: If we failed (timeout), kill the polling loop immediately!
-        if (abortControllerRef.current) {
-          abortControllerRef.current.abort();
+        // Only show error if we haven't unmounted/reset
+        if (!currentSignal.aborted) {
+          setError(true);
         }
-
-        setError(true);
       }
     };
 
     syncHardware();
 
-    // CLEANUP: If the user leaves the page or component unmounts, stop the loop
+    // CLEANUP: Stop the loop if user leaves or clicks retry
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
-  }, [setStep, retryCount]);
+  }, [setStep, retryTrigger]);
 
+  // --- RETRY HANDLER ---
   const handleRetry = () => {
-    setRetryCount((prev) => prev + 1);
+    setError(false); // Hide error screen immediately
+    setProgress(0); // Reset progress
+    setRetryTrigger((prev) => prev + 1); // Trigger useEffect again
   };
 
   return (
@@ -108,8 +106,8 @@ function ScanningData({ setStep }) {
 
             <h3 className="text-red-600 font-bold text-xl mb-2">Scan Failed</h3>
             <p className="text-center text-gray-500 text-sm mb-8 px-4">
-              We couldn't detect the sensor data in time. Please check if the
-              ESP32 is powered on.
+              We couldn't detect the sensor data in time (20s). Please check if
+              the hardware is powered on.
             </p>
 
             <button
@@ -134,8 +132,8 @@ function ScanningData({ setStep }) {
               {progress === 0 ? "Waiting for Tag Scan..." : "Syncing Data..."}
             </h3>
 
+            {/* Checklist items */}
             <div className="w-full space-y-4">
-              {/* Checklist Items... Same as before */}
               <div
                 className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-500 ${
                   progress >= 1
