@@ -15,29 +15,34 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function ScanningData({ setStep }) {
   const [progress, setProgress] = useState(0);
-  const [error, setError] = useState(false); // Track error state
-  const [retryCount, setRetryCount] = useState(0); // Used to trigger re-runs
+  const [error, setError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
-  // We use a ref to prevent double-firing in React StrictMode,
-  // but we reset it when retryCount changes.
-  const hasStarted = useRef(false);
+  // We keep a reference to the AbortController so we can call .abort() anytime
+  const abortControllerRef = useRef(null);
 
   useEffect(() => {
-    hasStarted.current = true;
     setError(false);
     setProgress(0);
+
+    // 1. Create a new controller for this specific attempt
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
 
     const syncHardware = async () => {
       try {
         // --- PHASE 1: POLL FOR DATA (WITH TIMEOUT) ---
 
-        // Create a timeout promise that rejects after 20 seconds
+        // This promise rejects after 20 seconds
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error("Timeout")), 20000)
         );
 
-        // Race the sensor polling against the timeout
-        const data = await Promise.race([waitForSensorData(), timeoutPromise]);
+        // We pass 'signal' to waitForSensorData so it knows when to stop
+        const data = await Promise.race([
+          waitForSensorData(signal),
+          timeoutPromise,
+        ]);
 
         // --- PHASE 2: SAVE DATA ---
         console.log("Saving Sensor Data:", data);
@@ -51,34 +56,41 @@ function ScanningData({ setStep }) {
         );
 
         // --- PHASE 3: PLAY CHECKLIST ANIMATION ---
-        setProgress(1); // RFID Checked
+        setProgress(1);
         await wait(600);
 
-        setProgress(2); // Weight Checked
+        setProgress(2);
         await wait(600);
 
-        setProgress(3); // Height Checked
+        setProgress(3);
         await wait(800);
 
         // --- PHASE 4: FINISH ---
-        setStep(3); // Move to Details Screen
+        setStep(3);
       } catch (err) {
         console.error("Sync failed:", err);
-        setError(true); // Show the "Try Again" screen
+
+        // CRITICAL: If we failed (timeout), kill the polling loop immediately!
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+
+        setError(true);
       }
     };
 
     syncHardware();
 
-    // Cleanup function to handle component unmounting
+    // CLEANUP: If the user leaves the page or component unmounts, stop the loop
     return () => {
-      hasStarted.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
-  }, [setStep, retryCount]); // Re-run when retryCount changes
+  }, [setStep, retryCount]);
 
   const handleRetry = () => {
-    hasStarted.current = false; // Allow the effect to run again
-    setRetryCount((prev) => prev + 1); // Trigger the useEffect
+    setRetryCount((prev) => prev + 1);
   };
 
   return (
@@ -111,7 +123,6 @@ function ScanningData({ setStep }) {
         ) : (
           /* === LOADING VIEW === */
           <>
-            {/* Spinner Animation */}
             <div className="relative mb-8">
               <div className="absolute inset-0 bg-[#4A6741]/10 rounded-full animate-ping"></div>
               <div className="relative p-4 bg-white rounded-full border-2 border-[#4A6741]/20">
@@ -123,16 +134,14 @@ function ScanningData({ setStep }) {
               {progress === 0 ? "Waiting for Tag Scan..." : "Syncing Data..."}
             </h3>
 
-            {/* The Checklist Animation */}
             <div className="w-full space-y-4">
-              {/* Item 1: RFID */}
+              {/* Checklist Items... Same as before */}
               <div
-                className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-500 
-                    ${
-                      progress >= 1
-                        ? "bg-green-50 border-green-200"
-                        : "bg-gray-50 border-gray-100 opacity-50"
-                    }`}
+                className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-500 ${
+                  progress >= 1
+                    ? "bg-green-50 border-green-200"
+                    : "bg-gray-50 border-gray-100 opacity-50"
+                }`}
               >
                 <div className="flex items-center gap-3">
                   <ScanLine
@@ -153,14 +162,12 @@ function ScanningData({ setStep }) {
                 )}
               </div>
 
-              {/* Item 2: Weight */}
               <div
-                className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-500 
-                    ${
-                      progress >= 2
-                        ? "bg-green-50 border-green-200"
-                        : "bg-gray-50 border-gray-100 opacity-50"
-                    }`}
+                className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-500 ${
+                  progress >= 2
+                    ? "bg-green-50 border-green-200"
+                    : "bg-gray-50 border-gray-100 opacity-50"
+                }`}
               >
                 <div className="flex items-center gap-3">
                   <Weight
@@ -181,14 +188,12 @@ function ScanningData({ setStep }) {
                 )}
               </div>
 
-              {/* Item 3: Height */}
               <div
-                className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-500 
-                    ${
-                      progress >= 3
-                        ? "bg-green-50 border-green-200"
-                        : "bg-gray-50 border-gray-100 opacity-50"
-                    }`}
+                className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-500 ${
+                  progress >= 3
+                    ? "bg-green-50 border-green-200"
+                    : "bg-gray-50 border-gray-100 opacity-50"
+                }`}
               >
                 <div className="flex items-center gap-3">
                   <Ruler
