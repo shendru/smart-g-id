@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import captureGif from "../../assets/capturing.gif";
 import { captureImage } from "../../lib/signal.js";
-import { RefreshCw, CheckCircle, ArrowRight } from "lucide-react"; // Import Icons
+import { RefreshCw, CheckCircle, ArrowRight, Loader2 } from "lucide-react";
 
 // Helper to pause execution
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -10,13 +10,14 @@ function Capturing({ setStep, saveData }) {
   const [status, setStatus] = useState("Initializing Camera Connection...");
   const [progress, setProgress] = useState(0);
   const [capturedImages, setCapturedImages] = useState([]);
-  const [isComplete, setIsComplete] = useState(false); // New state for completion
-  const [retryTrigger, setRetryTrigger] = useState(0); // To trigger re-runs
+
+  const [isComplete, setIsComplete] = useState(false);
+  const [isUploading, setIsUploading] = useState(false); // NEW: Loading state for upload
+  const [retryTrigger, setRetryTrigger] = useState(0);
 
   const hasRun = useRef(false);
 
   useEffect(() => {
-    // Reset flags on retry
     if (hasRun.current) return;
     hasRun.current = true;
 
@@ -32,40 +33,33 @@ function Capturing({ setStep, saveData }) {
 
           try {
             const base64Img = await captureImage();
-
-            // 1. Update Local Array
             localImages.push(base64Img);
-
-            // 2. Update React State
             setCapturedImages([...localImages]);
-
             setProgress(i * 25);
           } catch (err) {
             console.error(err);
             setStatus(`Error on Angle ${i}. Retrying...`);
             await wait(2000);
-            i--; // Retry this index
+            i--;
             continue;
           }
 
-          // Rotation Pause (except after last shot)
           if (i < 4) {
             setStatus("ROTATE GOAT NOW! (5s)");
             await wait(5000);
           }
         }
 
-        // --- FINISH SEQUENCE ---
         setStatus("Sequence Complete! Review Images.");
 
-        // Save locally immediately so data isn't lost
+        // Save locally just in case
         if (saveData) {
           saveData(localImages);
         } else {
           localStorage.setItem("goat_photos", JSON.stringify(localImages));
         }
 
-        setIsComplete(true); // Show the buttons
+        setIsComplete(true);
       } catch (error) {
         console.error("Sequence failed:", error);
         setStatus("System Error. Check Console.");
@@ -73,7 +67,7 @@ function Capturing({ setStep, saveData }) {
     };
 
     runSequence();
-  }, [saveData, retryTrigger]); // Re-run when retryTrigger changes
+  }, [saveData, retryTrigger]);
 
   // --- HANDLERS ---
   const handleRetry = () => {
@@ -81,18 +75,64 @@ function Capturing({ setStep, saveData }) {
     setProgress(0);
     setStatus("Restarting Camera...");
     setIsComplete(false);
-    hasRun.current = false; // Allow useEffect to run again
+    hasRun.current = false;
     setRetryTrigger((prev) => prev + 1);
   };
 
-  const handleFinish = () => {
-    setStep(5); // Move to next step manually
+  // === THE FINAL SUBMISSION LOGIC ===
+  const handleFinish = async () => {
+    setIsUploading(true);
+    setStatus("Uploading Data to Server...");
+
+    try {
+      // 1. Get Data from LocalStorage
+      const registrationData = JSON.parse(
+        localStorage.getItem("goat_registration_data") || "{}"
+      );
+      const userToken = JSON.parse(localStorage.getItem("user_token") || "{}");
+
+      if (!userToken._id) {
+        throw new Error("User not logged in (Missing ID)");
+      }
+
+      // 2. Construct Payload
+      const payload = {
+        ...registrationData, // Name, Breed, Weight, etc.
+        owner: userToken._id, // Link to the Farmer
+        photos: capturedImages, // The 4 Base64 Images
+      };
+
+      console.log("🚀 Sending Payload:", payload);
+
+      // 3. Send to Backend
+      const response = await fetch("http://localhost:5000/add-goat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Server rejected data");
+      }
+
+      console.log("✅ Success:", data);
+      setStatus("Upload Successful!");
+
+      // 4. Move to Final Screen
+      setStep(5);
+    } catch (error) {
+      console.error("Upload Error:", error);
+      setStatus(`Upload Failed: ${error.message}`);
+      setIsUploading(false); // Re-enable buttons so user can try again
+    }
   };
 
   return (
     <div className="rounded-xl bg-white border-2 border-[#4A6741]/20 shadow-md overflow-hidden relative">
       <div className="p-8 flex flex-col items-center justify-center min-h-[500px]">
-        {/* GIF Container - Hide when complete to reduce clutter */}
+        {/* GIF Container */}
         {!isComplete && (
           <div className="relative mb-6">
             <div
@@ -103,7 +143,6 @@ function Capturing({ setStep, saveData }) {
                   : "animate-[spin_10s_linear_infinite]"
               }`}
             ></div>
-
             <div className="p-4 rounded-full bg-[#F5F1E8]">
               <img
                 src={captureGif}
@@ -116,8 +155,12 @@ function Capturing({ setStep, saveData }) {
 
         {/* Status Text */}
         <h3
-          className={`font-bold text-xl mb-2 flex items-center gap-2 transition-colors duration-300
-            ${status.includes("Error") ? "text-red-500" : "text-[#4A6741]"}`}
+          className={`font-bold text-xl mb-2 flex items-center gap-2 transition-colors duration-300 text-center
+            ${
+              status.includes("Error") || status.includes("Failed")
+                ? "text-red-500"
+                : "text-[#4A6741]"
+            }`}
         >
           {status}
         </h3>
@@ -130,7 +173,7 @@ function Capturing({ setStep, saveData }) {
           </p>
         )}
 
-        {/* Progress Bar (Hide when complete) */}
+        {/* Progress Bar */}
         {!isComplete && (
           <div className="w-full max-w-xs bg-gray-100 rounded-full h-2.5 overflow-hidden mb-8">
             <div
@@ -140,7 +183,7 @@ function Capturing({ setStep, saveData }) {
           </div>
         )}
 
-        {/* === LIVE IMAGE PREVIEW GRID === */}
+        {/* Live Image Grid */}
         <div
           className={`grid grid-cols-4 gap-2 w-full max-w-md ${
             isComplete ? "mb-8" : ""
@@ -171,13 +214,14 @@ function Capturing({ setStep, saveData }) {
           ))}
         </div>
 
-        {/* === ACTION BUTTONS (Only show when complete) === */}
+        {/* === ACTION BUTTONS === */}
         {isComplete && (
           <div className="flex gap-4 w-full max-w-md animate-in slide-in-from-bottom-4 fade-in">
             {/* RETRY BUTTON */}
             <button
               onClick={handleRetry}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-gray-300 text-gray-600 rounded-xl font-semibold hover:border-gray-400 hover:bg-gray-50 transition-all active:scale-95"
+              disabled={isUploading}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-gray-300 text-gray-600 rounded-xl font-semibold hover:border-gray-400 hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw className="w-5 h-5" />
               Retake All
@@ -186,10 +230,20 @@ function Capturing({ setStep, saveData }) {
             {/* FINISH BUTTON */}
             <button
               onClick={handleFinish}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#4A6741] text-white rounded-xl font-bold shadow-lg hover:bg-[#3a5233] transition-all active:scale-95 hover:shadow-xl"
+              disabled={isUploading}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#4A6741] text-white rounded-xl font-bold shadow-lg hover:bg-[#3a5233] transition-all active:scale-95 hover:shadow-xl disabled:opacity-70 disabled:cursor-wait"
             >
-              Finish & Save
-              <ArrowRight className="w-5 h-5" />
+              {isUploading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  Finish & Save
+                  <ArrowRight className="w-5 h-5" />
+                </>
+              )}
             </button>
           </div>
         )}
