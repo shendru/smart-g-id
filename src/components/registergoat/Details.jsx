@@ -1,12 +1,24 @@
 import { useState, useEffect } from "react";
 
 function Details({ setStep }) {
-  const [goatName, setGoatName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // === Health Status State ===
+  // === 1. FORM STATE (Added missing states) ===
+  const [goatName, setGoatName] = useState("");
+  const [gender, setGender] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [breed, setBreed] = useState("");
+
+  // Health Status
   const [healthTags, setHealthTags] = useState(["Healthy"]);
   const [healthInput, setHealthInput] = useState("");
+
+  // Hardware Data
+  const [sensorData, setSensorData] = useState({
+    weight: "",
+    height: "",
+    uid: "",
+  });
 
   const commonStatuses = [
     "Healthy",
@@ -17,29 +29,40 @@ function Details({ setStep }) {
     "Under Observation",
   ];
 
-  // === Hardware Data State ===
-  const [sensorData, setSensorData] = useState({
-    weight: "",
-    height: "",
-    uid: "",
-  });
-
-  // 1. Load Data from LocalStorage on Mount
+  // === 2. LOAD DATA ON MOUNT ===
   useEffect(() => {
-    const savedData = localStorage.getItem("goat_data");
-    if (savedData) {
+    // A. Load Sensor Data (from Step 2)
+    const hardwareData = localStorage.getItem("goat_data");
+    if (hardwareData) {
       try {
-        const parsed = JSON.parse(savedData);
+        const parsed = JSON.parse(hardwareData);
         setSensorData({
           weight: parsed.weight || "0.00",
           height: parsed.height || "0",
           uid: parsed.uid || "Unknown",
         });
       } catch (err) {
-        console.error("Failed to parse goat data", err);
+        console.error("Failed to parse hardware data", err);
+      }
+    }
+
+    // B. Load Draft (If user comes back from next step)
+    const savedDraft = localStorage.getItem("goat_registration_data");
+    if (savedDraft) {
+      try {
+        const parsed = JSON.parse(savedDraft);
+        if (parsed.name) setGoatName(parsed.name);
+        if (parsed.gender) setGender(parsed.gender);
+        if (parsed.birthDate) setBirthDate(parsed.birthDate);
+        if (parsed.breed) setBreed(parsed.breed);
+        if (parsed.healthStatus) setHealthTags(parsed.healthStatus);
+      } catch (err) {
+        console.error("Failed to parse draft", err);
       }
     }
   }, []);
+
+  // === 3. HANDLERS ===
 
   const handleRandomName = async () => {
     setIsLoading(true);
@@ -57,7 +80,6 @@ function Details({ setStep }) {
     }
   };
 
-  // === HEALTH TAG FUNCTIONS ===
   const addTag = (tag) => {
     const formattedTag = tag.trim();
     if (formattedTag && !healthTags.includes(formattedTag)) {
@@ -77,24 +99,55 @@ function Details({ setStep }) {
     }
   };
 
+  // === 4. SAVE & PROCEED (The Logic Logic) ===
+  const handleNext = () => {
+    // Basic Validation
+    if (!goatName || !gender || !birthDate || !breed) {
+      alert("Please fill in all required fields (*)");
+      return;
+    }
+
+    // Construct the Master Data Object
+    const completeData = {
+      // Sensor Data
+      rfidTag: sensorData.uid,
+      weight: parseFloat(sensorData.weight) || 0,
+      height: parseFloat(sensorData.height) || 0,
+
+      // Manual Input
+      name: goatName,
+      gender: gender,
+      breed: breed,
+      birthDate: birthDate,
+      healthStatus: healthTags,
+    };
+
+    console.log("Saving Details to LocalStorage:", completeData);
+
+    // Save to LocalStorage
+    localStorage.setItem(
+      "goat_registration_data",
+      JSON.stringify(completeData)
+    );
+
+    // Move Next
+    setStep(4);
+  };
+
   return (
     <div className="rounded-xl bg-white border-2 border-[#4A6741]/20 shadow-md">
       <div className="p-5 mt-5">
         <h3 className="text-[#4A6741] font-bold text-lg mb-4">Goat Details</h3>
 
         <div className="space-y-4">
-          {/* 1. Goat Name */}
+          {/* NAME */}
           <div className="space-y-2">
-            <label
-              htmlFor="goatName"
-              className="block font-medium text-sm text-[#4A6741]"
-            >
+            <label className="block font-medium text-sm text-[#4A6741]">
               Goat Name *
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
-                id="goatName"
                 value={goatName}
                 onChange={(e) => setGoatName(e.target.value)}
                 className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
@@ -116,17 +169,15 @@ function Details({ setStep }) {
             </div>
           </div>
 
-          {/* 2. Gender & Birth Date */}
+          {/* GENDER & BIRTHDATE */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label
-                htmlFor="gender"
-                className="block font-medium text-sm text-[#4A6741]"
-              >
+              <label className="block font-medium text-sm text-[#4A6741]">
                 Gender *
               </label>
               <select
-                id="gender"
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A6741] bg-white"
               >
                 <option value="">Select...</option>
@@ -136,30 +187,26 @@ function Details({ setStep }) {
             </div>
 
             <div className="space-y-2">
-              <label
-                htmlFor="birthDate"
-                className="block font-medium text-sm text-[#4A6741]"
-              >
+              <label className="block font-medium text-sm text-[#4A6741]">
                 Birth Date *
               </label>
               <input
                 type="date"
-                id="birthDate"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
               />
             </div>
           </div>
 
-          {/* 3. Breed Dropdown */}
+          {/* BREED */}
           <div className="space-y-2">
-            <label
-              htmlFor="breed"
-              className="block font-medium text-sm text-[#4A6741]"
-            >
+            <label className="block font-medium text-sm text-[#4A6741]">
               Breed *
             </label>
             <select
-              id="breed"
+              value={breed}
+              onChange={(e) => setBreed(e.target.value)}
               className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A6741] bg-white"
             >
               <option value="">Select a breed...</option>
@@ -172,13 +219,12 @@ function Details({ setStep }) {
             </select>
           </div>
 
-          {/* 4. HEALTH STATUS */}
+          {/* HEALTH STATUS */}
           <div className="space-y-2">
             <label className="block font-medium text-sm text-[#4A6741]">
               Health Status *
             </label>
-
-            <div className="p-2 border border-gray-300 rounded-lg bg-white focus-within:ring-2 focus-within:ring-[#4A6741] focus-within:border-transparent flex flex-wrap gap-2">
+            <div className="p-2 border border-gray-300 rounded-lg bg-white focus-within:ring-2 focus-within:ring-[#4A6741] flex flex-wrap gap-2">
               {healthTags.map((tag, index) => (
                 <span
                   key={index}
@@ -193,14 +239,12 @@ function Details({ setStep }) {
                   <button
                     type="button"
                     onClick={() => removeTag(tag)}
-                    className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full text-current hover:bg-black/10 focus:outline-none"
+                    className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-black/10"
                   >
-                    <span className="sr-only">Remove</span>
                     &times;
                   </button>
                 </span>
               ))}
-
               <input
                 type="text"
                 value={healthInput}
@@ -208,23 +252,21 @@ function Details({ setStep }) {
                 onKeyDown={handleKeyDown}
                 className="flex-1 min-w-[120px] outline-none text-sm bg-transparent"
                 placeholder={
-                  healthTags.length === 0 ? "Type status & Hit Enter..." : ""
+                  healthTags.length === 0 ? "Type & Hit Enter..." : ""
                 }
               />
             </div>
-
             <div className="flex flex-wrap gap-2 mt-2">
               {commonStatuses.map((status) => (
                 <button
                   key={status}
                   type="button"
                   onClick={() => addTag(status)}
-                  className={`text-xs px-3 py-1 rounded-full border transition-all
-                      ${
-                        healthTags.includes(status)
-                          ? "bg-[#4A6741] text-white border-[#4A6741] opacity-50 cursor-default"
-                          : "bg-gray-50 text-gray-600 border-gray-200 hover:border-[#4A6741] hover:text-[#4A6741]"
-                      }`}
+                  className={`text-xs px-3 py-1 rounded-full border transition-all ${
+                    healthTags.includes(status)
+                      ? "bg-[#4A6741] text-white opacity-50 cursor-default"
+                      : "bg-gray-50 text-gray-600 hover:border-[#4A6741] hover:text-[#4A6741]"
+                  }`}
                   disabled={healthTags.includes(status)}
                 >
                   + {status}
@@ -235,26 +277,22 @@ function Details({ setStep }) {
 
           <hr className="border-gray-200 my-4" />
 
-          {/* 5. Hardware Detected Fields */}
+          {/* HARDWARE FIELDS */}
           <div className="flex items-center justify-between mt-6 mb-2">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Detected from Hardware (ESP32)
+              Detected from Hardware
             </p>
-
-            {/* === UPDATED: RETRY SCAN BUTTON === */}
             <button
               type="button"
-              onClick={() => setStep(1)} // Go back to Step 1 (Scanning)
+              onClick={() => setStep(1)}
               className="group flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-[#4A6741] bg-white border-2 border-[#4A6741] rounded-lg shadow-sm hover:bg-[#4A6741] hover:text-white transition-all duration-200 active:scale-95"
             >
-              {/* Icon spins on hover */}
               <RetryIcon className="w-4 h-4 transition-transform group-hover:rotate-180" />
               Retry Scan
             </button>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {/* WEIGHT */}
             <div className="space-y-2">
               <label className="block font-medium text-sm text-[#4A6741]">
                 Weight (kg)
@@ -269,8 +307,6 @@ function Details({ setStep }) {
                 <WeightIcon className="w-4 h-4 absolute left-2.5 top-3 text-gray-500" />
               </div>
             </div>
-
-            {/* HEIGHT */}
             <div className="space-y-2">
               <label className="block font-medium text-sm text-[#4A6741]">
                 Height (cm)
@@ -287,7 +323,6 @@ function Details({ setStep }) {
             </div>
           </div>
 
-          {/* RFID */}
           <div className="space-y-2">
             <label className="block font-medium text-sm text-[#4A6741]">
               RFID Tag ID
@@ -303,11 +338,11 @@ function Details({ setStep }) {
             </div>
           </div>
 
-          {/* 6. Proceed Button */}
+          {/* NEXT BUTTON (Updated to call handleNext) */}
           <div className="pt-4">
             <button
+              onClick={handleNext}
               className="w-full bg-[#4A6741] hover:bg-[#3a5233] text-white font-bold py-3 px-4 rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2"
-              onClick={() => setStep(4)}
             >
               Proceed to Next Step
               <svg
@@ -332,7 +367,7 @@ function Details({ setStep }) {
   );
 }
 
-// Simple Icons Components
+// Icons
 const RetryIcon = (props) => (
   <svg
     {...props}

@@ -44,7 +44,7 @@ function StartScan({ setStep }) {
         {/* Action Button */}
         <button
           className="w-full bg-[#4A6741] hover:bg-[#3a5233] text-white font-bold py-3 px-4 rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2"
-          onClick={() => setStep(3)}
+          onClick={() => setStep(2)}
         >
           Start Process
         </button>
