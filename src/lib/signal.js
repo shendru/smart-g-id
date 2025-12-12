@@ -40,15 +40,14 @@ export const waitForSensorData = async (abortSignal) => {
   console.log(`Signal: Starting poll for sensor data at ${SENSOR_IP}...`);
 
   while (true) {
-    // 1. Check if the UI Cancelled/Timed Out
-    if (abortSignal?.aborted) {
-      throw new Error("Polling cancelled by timeout");
-    }
+    if (abortSignal?.aborted) throw new Error("Polling cancelled by timeout");
 
     try {
-      // 2. Short request timeout (2s) so we don't hang
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 2000); 
+
+      // 1. Log that we are trying to fetch
+      console.log("Signal: Fetching..."); 
 
       const response = await fetch(`${SENSOR_IP}/get-data`, {
         method: 'GET',
@@ -56,24 +55,25 @@ export const waitForSensorData = async (abortSignal) => {
       });
       clearTimeout(timeoutId);
 
+      // 2. Log the raw status
+      console.log(`Signal: Response Status: ${response.status}`);
+
       if (response.ok) {
-        const data = await response.json();
+        // 3. Log the raw text BEFORE parsing JSON (Catches format errors)
+        const textData = await response.text();
+        console.log("Signal: Raw Body:", textData);
+
+        const data = JSON.parse(textData);
         if (data.status === "ok") {
-          console.log("Signal: Sensor Data Received!", data);
-          return {
-            uid: data.uid,
-            weight: data.weight,
-            height: data.height
-          };
+          return { uid: data.uid, weight: data.weight, height: data.height };
         }
       }
     } catch (error) {
-      // IMPORTANT: We swallow errors here so the loop DOES NOT break.
-      // We only break if the MAIN abortSignal says so.
-      // console.warn("Sensor not ready yet..."); 
+      // === CRITICAL DEBUG LOG ===
+      // This will tell us WHY React rejected the data
+      console.error("Signal Loop Error:", error);
     }
 
-    // 3. Wait 1 second before retrying
     await wait(1000);
   }
 };
