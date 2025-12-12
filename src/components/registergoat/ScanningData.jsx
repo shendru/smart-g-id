@@ -16,16 +16,17 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 function ScanningData({ setStep }) {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(false);
-  const [retryTrigger, setRetryTrigger] = useState(0); // Used to force re-run
+  const [retryTrigger, setRetryTrigger] = useState(0);
 
+  // We track the abort controller to cancel polling on unmount
   const abortControllerRef = useRef(null);
 
   useEffect(() => {
-    // 1. Reset State on Start
+    // 1. Reset State
     setError(false);
     setProgress(0);
 
-    // 2. Create a new AbortController for this specific attempt
+    // 2. Setup AbortController
     abortControllerRef.current = new AbortController();
     const currentSignal = abortControllerRef.current.signal;
 
@@ -34,11 +35,11 @@ function ScanningData({ setStep }) {
         console.log("Starting 20s Scan Window...");
 
         // --- PHASE 1: POLLING WITH 20s TIMEOUT ---
+        // We race the polling against a 20-second timer
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error("Timeout")), 20000)
         );
 
-        // Pass 'currentSignal' to waitForSensorData
         const data = await Promise.race([
           waitForSensorData(currentSignal),
           timeoutPromise,
@@ -66,8 +67,17 @@ function ScanningData({ setStep }) {
         // --- PHASE 4: FINISH ---
         setStep(3);
       } catch (err) {
+        // === FIX: IGNORE INTENTIONAL CANCELLATIONS ===
+        if (err.message === "Polling cancelled by timeout") {
+          console.log(
+            "Cleanup: Polling stopped (React Strict Mode or Unmount)."
+          );
+          return; // Exit without showing error screen
+        }
+
         console.error("Sync failed:", err);
-        // Only show error if we haven't unmounted/reset
+
+        // Only show Error Screen if the component is still mounted (signal active)
         if (!currentSignal.aborted) {
           setError(true);
         }
@@ -76,7 +86,7 @@ function ScanningData({ setStep }) {
 
     syncHardware();
 
-    // CLEANUP: Stop the loop if user leaves or clicks retry
+    // CLEANUP
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -84,11 +94,10 @@ function ScanningData({ setStep }) {
     };
   }, [setStep, retryTrigger]);
 
-  // --- RETRY HANDLER ---
   const handleRetry = () => {
-    setError(false); // Hide error screen immediately
-    setProgress(0); // Reset progress
-    setRetryTrigger((prev) => prev + 1); // Trigger useEffect again
+    setError(false);
+    setProgress(0);
+    setRetryTrigger((prev) => prev + 1);
   };
 
   return (
@@ -107,7 +116,7 @@ function ScanningData({ setStep }) {
             <h3 className="text-red-600 font-bold text-xl mb-2">Scan Failed</h3>
             <p className="text-center text-gray-500 text-sm mb-8 px-4">
               We couldn't detect the sensor data in time (20s). Please check if
-              the hardware is powered on.
+              the hardware is powered on and connected to the same Wi-Fi.
             </p>
 
             <button
