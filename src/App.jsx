@@ -1,9 +1,9 @@
 import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
-import "./App.css";
 import Nav from "./components/Nav";
+import { Routes, Route } from "react-router-dom";
+
 import Home from "./views/Home";
+import RegisterGoat from "./views/RegisterGoat";
 
 function App() {
   const [count, setCount] = useState(0);
@@ -12,8 +12,11 @@ function App() {
     <>
       <Nav />
 
-      <main className="px-4 py-6">
-        <Home />
+      <main className="px-4 py-6 max-w-4xl mx-auto flex h-[calc(100vh-76px)] flex-col gap-5">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/registergoat" element={<RegisterGoat />} />
+        </Routes>
       </main>
     </>
   );
