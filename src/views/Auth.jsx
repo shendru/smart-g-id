@@ -53,7 +53,7 @@ export default function Auth({ setIsLoggedIn }) {
 
     try {
       const endpoint = isLogin ? "login" : "register";
-      const url = `http://localhost:5000/${endpoint}`;
+      const url = `http://10.109.254.1:5000/${endpoint}`;
 
       const response = await fetch(url, {
         method: "POST",

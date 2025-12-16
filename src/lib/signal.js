@@ -1,11 +1,11 @@
 // ==========================================
 // CONFIGURATION
 // ==========================================
-const CAMERA_IP = "http://10.15.33.35"; 
-const SENSOR_IP = "http://10.15.33.48"; 
+const CAMERA_IP = "http://10.109.254.35";
+const SENSOR_IP = "http://10.109.254.48";
 
 // Helper
-const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // ==========================================
 // CAMERA FUNCTION
@@ -13,10 +13,10 @@ const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 export const captureImage = async () => {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); 
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     const response = await fetch(`${CAMERA_IP}/capture`, {
-      method: 'GET',
+      method: "GET",
       signal: controller.signal,
     });
 
@@ -24,7 +24,8 @@ export const captureImage = async () => {
 
     if (!response.ok) throw new Error(`Camera Error: ${response.statusText}`);
     const data = await response.json();
-    if (data.status !== "ok") throw new Error("Camera reported internal error.");
+    if (data.status !== "ok")
+      throw new Error("Camera reported internal error.");
 
     return data.image;
   } catch (error) {
@@ -44,13 +45,13 @@ export const waitForSensorData = async (abortSignal) => {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000); 
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
 
       // 1. Log that we are trying to fetch
-      console.log("Signal: Fetching..."); 
+      console.log("Signal: Fetching...");
 
       const response = await fetch(`${SENSOR_IP}/get-data`, {
-        method: 'GET',
+        method: "GET",
         signal: controller.signal,
       });
       clearTimeout(timeoutId);

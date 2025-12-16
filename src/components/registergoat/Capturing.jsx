@@ -28,8 +28,12 @@ function Capturing({ setStep, saveData }) {
 
         // --- LOOP 4 TIMES ---
         for (let i = 1; i <= 4; i++) {
-          setStatus(`Steady... Capturing Angle ${i}/4`);
-          await wait(1000);
+          // 1. Simulate Machine Movement/Stabilization
+          setStatus(`[CoreXY] Aligning Gantry to Vector ${i}/4...`);
+          await wait(1500); // Simulate motor travel time
+
+          setStatus(`Optical Lock Acquired. Capturing Frame ${i}...`);
+          await wait(500); // Short pause for "focus"
 
           try {
             const base64Img = await captureImage();
@@ -38,19 +42,22 @@ function Capturing({ setStep, saveData }) {
             setProgress(i * 25);
           } catch (err) {
             console.error(err);
-            setStatus(`Error on Angle ${i}. Retrying...`);
+            setStatus(`[ERR] Sensor Fault on Vector ${i}. Retrying...`);
             await wait(2000);
-            i--;
+            i--; // Decrement to retry this index
             continue;
           }
 
+          // 2. Transit to next position (if not the last one)
           if (i < 4) {
-            setStatus("ROTATE GOAT NOW! (5s)");
-            await wait(5000);
+            setStatus(
+              `Sequence Pending... Actuating Motors to Quadrant ${i + 1}`
+            );
+            await wait(2000); // Time for the machine to move around the goat
           }
         }
 
-        setStatus("Sequence Complete! Review Images.");
+        setStatus("Scan Logic Complete. Parking Sensors.");
 
         // Save locally just in case
         if (saveData) {
@@ -62,7 +69,7 @@ function Capturing({ setStep, saveData }) {
         setIsComplete(true);
       } catch (error) {
         console.error("Sequence failed:", error);
-        setStatus("System Error. Check Console.");
+        setStatus("System Critical Error. Check Console.");
       }
     };
 
@@ -105,7 +112,7 @@ function Capturing({ setStep, saveData }) {
       console.log("🚀 Sending Payload:", payload);
 
       // 3. Send to Backend
-      const response = await fetch("http://localhost:5000/add-goat", {
+      const response = await fetch("http://10.109.254.1:5000/add-goat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

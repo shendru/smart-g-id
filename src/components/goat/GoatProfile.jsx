@@ -6,7 +6,6 @@ import {
   X,
   Camera,
   Trash2,
-  Plus,
   RefreshCw,
   ArrowLeft,
   Ruler,
@@ -14,6 +13,7 @@ import {
   Activity,
   ScanLine,
   Loader2,
+  Calendar,
 } from "lucide-react";
 
 export default function GoatProfile() {
@@ -25,20 +25,37 @@ export default function GoatProfile() {
   const [isEditing, setIsEditing] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
 
-  // Profile Data (Initialized empty)
+  // Profile Data
   const [profile, setProfile] = useState(null);
   const [editedProfile, setEditedProfile] = useState(null);
+
+  // Health Status Logic State
+  const [healthInput, setHealthInput] = useState("");
+  const commonStatuses = [
+    "Healthy",
+    "Sick",
+    "Injured",
+    "Pregnant",
+    "Quarantined",
+    "Under Observation",
+  ];
 
   // --- 1. FETCH DATA ON LOAD ---
   useEffect(() => {
     const fetchGoat = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/get-goat/${id}`);
+        const response = await fetch(`http://10.109.254.1:5000/get-goat/${id}`);
         const data = await response.json();
 
         if (response.ok) {
           setProfile(data);
-          setEditedProfile(data);
+          // Ensure healthStatus is an array
+          setEditedProfile({
+            ...data,
+            healthStatus: Array.isArray(data.healthStatus)
+              ? data.healthStatus
+              : [data.healthStatus],
+          });
         } else {
           console.error("Failed to load profile");
         }
@@ -52,17 +69,110 @@ export default function GoatProfile() {
     fetchGoat();
   }, [id]);
 
-  // --- HANDLERS ---
-  const handleSave = () => {
-    // Here you would PUT/PATCH the data to the backend
-    setProfile(editedProfile);
-    setIsEditing(false);
+  // --- HEALTH TAG HANDLERS ---
+  const addTag = (tag) => {
+    if (tag && editedProfile && !editedProfile.healthStatus.includes(tag)) {
+      setEditedProfile((prev) => ({
+        ...prev,
+        healthStatus: [...prev.healthStatus, tag],
+      }));
+      setHealthInput("");
+    }
+  };
+
+  const removeTag = (tagToRemove) => {
+    setEditedProfile((prev) => ({
+      ...prev,
+      healthStatus: prev.healthStatus.filter((t) => t !== tagToRemove),
+    }));
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addTag(healthInput.trim());
+    }
+  };
+
+  // --- MAIN HANDLERS ---
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+
+      // CHANGE 1: Use a specific update URL with the ID
+      // CHANGE 2: Use PUT instead of POST
+      const response = await fetch(
+        `http://10.109.254.1:5000/update-goat/${id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...editedProfile,
+            // usually backend doesn't need owner if it's already there,
+            // but keeping it doesn't hurt.
+            owner: profile.owner,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setProfile(result.goat);
+        setEditedProfile(result.goat);
+        setIsEditing(false);
+      } else {
+        alert("Failed to update profile: " + result.error);
+      }
+    } catch (err) {
+      console.error("Save Error:", err);
+      alert("Network error while saving.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancel = () => {
     setEditedProfile(profile);
     setIsEditing(false);
+    setHealthInput(""); // Reset input buffer
   };
+
+  const handleDelete = async () => {
+    if (
+      !confirm(
+        "Are you sure you want to delete this goat profile? This action cannot be undone."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `http://10.109.254.1:5000/delete-goat/${id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (response.ok) {
+        navigate(-1);
+      } else {
+        alert("Failed to delete goat. Please try again.");
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error("Error deleting:", error);
+      alert("Network error occurred.");
+      setLoading(false);
+    }
+  };
+
+  // Helper alias for JSX readability
+  const healthTags = editedProfile?.healthStatus || [];
 
   if (loading) {
     return (
@@ -94,71 +204,93 @@ export default function GoatProfile() {
         <div className="p-5">
           <div className="flex items-start justify-between">
             {/* Left: Name & RFID */}
-            <div>
+            <div className="flex-1 mr-4">
               <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-3xl font-bold text-[#4A6741] m-0">
-                  {profile.name}
-                </h2>
-                <span className="bg-[#8B9D83] text-white text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wide">
-                  Active
-                </span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editedProfile.name}
+                    onChange={(e) =>
+                      setEditedProfile({
+                        ...editedProfile,
+                        name: e.target.value,
+                      })
+                    }
+                    className="text-2xl font-bold text-[#4A6741] border-b-2 border-[#4A6741]/30 focus:outline-none focus:border-[#4A6741] bg-transparent w-full"
+                    placeholder="Goat Name"
+                  />
+                ) : (
+                  <h2 className="text-3xl font-bold text-[#4A6741] m-0">
+                    {profile.name}
+                  </h2>
+                )}
+                {!isEditing && (
+                  <span className="bg-[#8B9D83] text-white text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wide">
+                    Active
+                  </span>
+                )}
               </div>
+
               <div className="flex items-center gap-2 text-[#7A6E5C] bg-[#F5F1E8] px-3 py-1.5 rounded-lg w-fit">
                 <ScanLine className="w-4 h-4" />
                 <span className="font-mono font-medium">{profile.rfidTag}</span>
               </div>
             </div>
 
-            {/* Right: Edit Button */}
-            <button
-              onClick={() => setIsEditing(!isEditing)}
-              className="p-2 border-2 border-[#4A6741]/20 rounded-lg text-[#4A6741] hover:bg-[#4A6741] hover:text-white transition-colors"
-            >
-              {isEditing ? (
-                <X className="h-5 w-5" />
+            {/* Right: Actions */}
+            <div className="flex gap-2">
+              {!isEditing ? (
+                <>
+                  <button
+                    onClick={handleDelete}
+                    className="p-2 border-2 border-red-100 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="p-2 border-2 border-[#4A6741]/20 rounded-lg text-[#4A6741] hover:bg-[#4A6741] hover:text-white transition-colors"
+                  >
+                    <Edit2 className="h-5 w-5" />
+                  </button>
+                </>
               ) : (
-                <Edit2 className="h-5 w-5" />
+                <button
+                  onClick={handleCancel}
+                  className="p-2 border-2 border-gray-200 rounded-lg text-gray-400 hover:bg-gray-100"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               )}
-            </button>
+            </div>
           </div>
         </div>
         <div className="h-1 w-full bg-[#4A6741]/20"></div>
       </div>
 
       {/* =========================================================
-          CONTAINER 2: IMAGES (From Database)
+          CONTAINER 2: IMAGES (View Only)
          ========================================================= */}
       <div className="bg-white border-2 border-[#4A6741]/20 rounded-xl shadow-md overflow-hidden">
         <div className="p-4 bg-gray-50 border-b border-[#4A6741]/10 flex justify-between items-center">
           <h3 className="text-[#4A6741] font-bold text-sm uppercase tracking-wider m-0 flex items-center gap-2">
             <Camera className="w-4 h-4" /> Media Gallery
           </h3>
-          {isEditing && (
-            <button className="text-xs bg-[#4A6741] text-white px-2 py-1 rounded hover:bg-[#3d5535] flex items-center">
-              <Plus className="w-3 h-3 mr-1" /> Add
-            </button>
-          )}
         </div>
 
         <div className="p-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {/* Map through fetched images */}
             {profile.images && profile.images.length > 0 ? (
               profile.images.map((imgUrl, index) => (
                 <div
                   key={index}
-                  className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group cursor-pointer"
+                  className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group"
                 >
                   <img
                     src={imgUrl}
                     alt={`Goat ${index}`}
                     className="w-full h-full object-cover transition-transform group-hover:scale-105"
                   />
-                  {isEditing && (
-                    <button className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-80 hover:opacity-100">
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  )}
                 </div>
               ))
             ) : (
@@ -166,33 +298,26 @@ export default function GoatProfile() {
                 No images available.
               </div>
             )}
-
-            {/* Add Placeholder */}
-            {isEditing && (
-              <div className="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-50">
-                <Plus className="w-6 h-6" />
-              </div>
-            )}
           </div>
         </div>
       </div>
 
       {/* =========================================================
-          CONTAINER 3: GOAT DETAILS (Metrics & Bio)
+          CONTAINER 3: GOAT DETAILS
          ========================================================= */}
       <div className="bg-white border-2 border-[#4A6741]/20 rounded-xl shadow-md overflow-hidden">
-        {/* 3A. Sensor Metrics */}
+        {/* 3A. Sensor Metrics (Read Only) */}
         <div className="p-5 border-b border-dashed border-[#4A6741]/20">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-[#4A6741] font-bold text-lg m-0 flex items-center gap-2">
               <Activity className="w-5 h-5" /> Physical Metrics
             </h3>
             <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-              Last Updated: {new Date(profile.addedAt).toLocaleDateString()}
+              Sensor Data (Read-Only)
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 opacity-90">
             <SensorBox
               label="Weight"
               value={profile.weight}
@@ -208,7 +333,7 @@ export default function GoatProfile() {
           </div>
         </div>
 
-        {/* 3B. Biological Info */}
+        {/* 3B. Biological Info (Editable) */}
         <div className="p-5">
           <h3 className="text-[#4A6741] font-bold text-lg mb-4">
             Biological Details
@@ -219,10 +344,10 @@ export default function GoatProfile() {
               // --- EDIT MODE ---
               <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
                 <div className="grid grid-cols-2 gap-4">
-                  {/* Breed Select */}
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-[#4A6741]">
-                      Breed
+                  {/* --- UPDATED BREED SELECT --- */}
+                  <div className="space-y-2">
+                    <label className="block font-medium text-sm text-[#4A6741]">
+                      Breed *
                     </label>
                     <select
                       value={editedProfile.breed}
@@ -232,17 +357,24 @@ export default function GoatProfile() {
                           breed: e.target.value,
                         })
                       }
-                      className="w-full p-2 border border-[#4A6741]/30 rounded text-sm bg-white"
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A6741] bg-white"
                     >
-                      <option>Boer</option>
-                      <option>Nubian</option>
-                      <option>Native</option>
-                      <option>Mixed</option>
+                      {/* Only show 'Select...' if there is no breed currently set */}
+                      {!editedProfile.breed && (
+                        <option value="">Select a breed...</option>
+                      )}
+                      <option value="Native">Native</option>
+                      <option value="Boer">Boer</option>
+                      <option value="Anglo-Nubian">Anglo-Nubian</option>
+                      <option value="Saanen">Saanen</option>
+                      <option value="Toggenburg">Toggenburg</option>
+                      <option value="Mixed">Mixed / Crossbreed</option>
                     </select>
                   </div>
+
                   {/* Gender Select */}
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-[#4A6741]">
+                  <div className="space-y-2">
+                    <label className="block font-medium text-sm text-[#4A6741]">
                       Gender
                     </label>
                     <select
@@ -253,41 +385,107 @@ export default function GoatProfile() {
                           gender: e.target.value,
                         })
                       }
-                      className="w-full p-2 border border-[#4A6741]/30 rounded text-sm bg-white"
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A6741] bg-white"
                     >
                       <option>Male</option>
                       <option>Female</option>
                     </select>
                   </div>
-                </div>
 
-                {/* Health Tags (Read-only edit for now) */}
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-[#4A6741]">
-                    Health Status
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {editedProfile.healthStatus.map((tag, i) => (
-                      <span
-                        key={i}
-                        className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full"
-                      >
-                        {tag}
-                      </span>
-                    ))}
+                  {/* Birth Date Input */}
+                  <div className="space-y-2">
+                    <label className="block font-medium text-sm text-[#4A6741]">
+                      Birth Date
+                    </label>
+                    <input
+                      type="date"
+                      value={
+                        editedProfile.birthDate
+                          ? new Date(editedProfile.birthDate)
+                              .toISOString()
+                              .split("T")[0]
+                          : ""
+                      }
+                      onChange={(e) =>
+                        setEditedProfile({
+                          ...editedProfile,
+                          birthDate: e.target.value,
+                        })
+                      }
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A6741] bg-white"
+                    />
                   </div>
                 </div>
 
+                {/* --- HEALTH STATUS INPUT SECTION --- */}
+                <div className="space-y-2">
+                  <label className="block font-medium text-sm text-[#4A6741]">
+                    Health Status *
+                  </label>
+                  <div className="p-2 border border-gray-300 rounded-lg bg-white focus-within:ring-2 focus-within:ring-[#4A6741] flex flex-wrap gap-2">
+                    {healthTags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium 
+                          ${
+                            tag === "Healthy"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-orange-100 text-orange-800"
+                          }`}
+                      >
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => removeTag(tag)}
+                          className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-black/10"
+                        >
+                          &times;
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      type="text"
+                      value={healthInput}
+                      onChange={(e) => setHealthInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      className="flex-1 min-w-[120px] outline-none text-sm bg-transparent"
+                      placeholder={
+                        healthTags.length === 0 ? "Type & Hit Enter..." : ""
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {commonStatuses.map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => addTag(status)}
+                        className={`text-xs px-3 py-1 rounded-full border transition-all ${
+                          healthTags.includes(status)
+                            ? "bg-[#4A6741] text-white opacity-50 cursor-default"
+                            : "bg-gray-50 text-gray-600 hover:border-[#4A6741] hover:text-[#4A6741]"
+                        }`}
+                        disabled={healthTags.includes(status)}
+                      >
+                        + {status}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <hr className="border-gray-200 my-4" />
+                {/* --------------------------------------- */}
+
+                {/* Save / Cancel Action Bar */}
                 <div className="flex gap-2 pt-2">
                   <button
                     onClick={handleSave}
-                    className="flex-1 bg-[#4A6741] text-white py-2 rounded text-sm font-bold hover:bg-[#3d5535]"
+                    className="flex-1 bg-[#4A6741] text-white py-2.5 rounded-lg text-sm font-bold hover:bg-[#3d5535] flex items-center justify-center gap-2 shadow-sm"
                   >
-                    Save
+                    <Save className="w-4 h-4" /> Save Changes
                   </button>
                   <button
                     onClick={handleCancel}
-                    className="flex-1 border border-gray-300 text-gray-600 py-2 rounded text-sm font-bold hover:bg-gray-50"
+                    className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-50"
                   >
                     Cancel
                   </button>
@@ -299,11 +497,12 @@ export default function GoatProfile() {
                 <InfoRow
                   label="Birth Date"
                   value={new Date(profile.birthDate).toLocaleDateString()}
+                  icon={<Calendar className="w-3 h-3" />}
                 />
                 <InfoRow label="Gender" value={profile.gender} />
                 <InfoRow label="Breed" value={profile.breed} />
 
-                {/* Health Status Tags */}
+                {/* Health Status Tags (Read Only) */}
                 <div className="sm:col-span-2">
                   <p className="text-xs text-[#7A6E5C] mb-1">Health Status</p>
                   <div className="flex flex-wrap gap-2">
@@ -335,13 +534,15 @@ export default function GoatProfile() {
       </div>
 
       {/* Sync Button */}
-      <button
-        onClick={() => setShowSyncModal(true)}
-        className="w-full bg-[#D4621C] hover:bg-[#b85418] text-white h-12 rounded-xl shadow-lg flex items-center justify-center font-bold text-sm transition-transform active:scale-95"
-      >
-        <RefreshCw className="h-4 w-4 mr-2 animate-spin-slow" />
-        Sync to Marketplace
-      </button>
+      {!isEditing && (
+        <button
+          onClick={() => setShowSyncModal(true)}
+          className="w-full bg-[#D4621C] hover:bg-[#b85418] text-white h-12 rounded-xl shadow-lg flex items-center justify-center font-bold text-sm transition-transform active:scale-95"
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Sync to Marketplace
+        </button>
+      )}
 
       {/* Modal */}
       {showSyncModal && (
@@ -373,7 +574,9 @@ function SensorBox({ label, value, unit, icon }) {
 function InfoRow({ label, value }) {
   return (
     <div>
-      <p className="text-xs text-[#7A6E5C] mb-0.5">{label}</p>
+      <p className="text-xs text-[#7A6E5C] mb-0.5 flex items-center gap-1">
+        {label}
+      </p>
       <p className="text-base font-medium text-[#4A6741]">{value}</p>
     </div>
   );

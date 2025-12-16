@@ -3,53 +3,59 @@ import { Link } from "react-router-dom";
 import { ScanFace } from "lucide-react";
 
 function GoatCard({ goat }) {
+  // Helper for Status Badge Colors
+  const isHealthy = goat.healthStatus && goat.healthStatus.includes("Healthy");
+
   return (
     <Link
       to={`/goatprofile/${goat._id}`}
-      className="group relative flex flex-col justify-between rounded-xl bg-white border border-gray-200 shadow-sm hover:shadow-md hover:border-[#4A6741] transition-all duration-300 overflow-hidden cursor-pointer h-full min-h-[180px]"
+      // MATCHED SIZE: w-40 h-40 to match AddGoat
+      className="group relative block w-40 h-40 rounded-xl overflow-hidden shadow-sm hover:shadow-md border border-transparent hover:border-[#4A6741] transition-all duration-300 cursor-pointer bg-gray-100"
     >
-      {/* 1. Status Badge */}
-      <div className="absolute top-3 right-3 z-10">
-        <span
-          className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm
-          ${
-            goat.healthStatus && goat.healthStatus.includes("Healthy")
-              ? "bg-green-100 text-green-700 border border-green-200"
-              : "bg-orange-100 text-orange-700 border border-orange-200"
-          }`}
-        >
-          {goat.healthStatus && goat.healthStatus.length > 0
-            ? goat.healthStatus[0]
-            : "Unknown"}
-        </span>
-      </div>
-
-      {/* 2. Image Section */}
-      <div className="h-32 w-full bg-gray-100 flex items-center justify-center overflow-hidden group-hover:bg-[#4A6741]/5 transition-colors">
+      {/* 1. Full Background Image */}
+      <div className="absolute inset-0 w-full h-full">
         {goat.mainPhoto ? (
-          // REAL IMAGE
           <img
             src={goat.mainPhoto}
             alt={goat.name}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           />
         ) : (
-          // FALLBACK ICON
-          <ScanFace className="w-10 h-10 text-gray-300 group-hover:text-[#4A6741] transition-colors" />
+          // Fallback if no image exists
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gray-200 text-gray-400">
+            <ScanFace className="w-8 h-8 mb-1" />
+            <span className="text-[10px]">No Photo</span>
+          </div>
         )}
       </div>
 
-      {/* 3. Info Section */}
-      <div className="p-4 flex flex-col gap-1">
-        <h4 className="font-bold text-[#4A6741] text-lg leading-tight group-hover:underline truncate">
+      {/* 2. Dark Gradient Overlay (Visibility Wrapper) */}
+      {/* This ensures text is readable even on bright images */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-90" />
+
+      {/* 3. Floating Status Badge (Top Right) */}
+      <div className="absolute top-2 right-2">
+        <span
+          className={`block w-2.5 h-2.5 rounded-full border border-white shadow-sm ${
+            isHealthy ? "bg-green-500" : "bg-orange-500"
+          }`}
+          title={goat.healthStatus?.[0] || "Unknown"}
+        />
+      </div>
+
+      {/* 4. Floating Details (Bottom) */}
+      <div className="absolute bottom-0 left-0 w-full p-3 flex flex-col justify-end">
+        {/* Name */}
+        <h4 className="font-bold text-white text-base leading-tight truncate shadow-black drop-shadow-sm">
           {goat.name}
         </h4>
-        <p className="text-xs text-gray-400 font-mono truncate">
-          ID: {goat.rfidTag}
-        </p>
-        <p className="text-xs text-gray-500 mt-1 font-medium">
-          {goat.breed} • {goat.gender}
-        </p>
+
+        {/* RFID & Gender - Compacted for small size */}
+        <div className="flex items-center gap-1 text-white/80 text-[10px] font-mono mt-0.5">
+          <span className="truncate max-w-[60px]">{goat.rfidTag}</span>
+          <span>•</span>
+          <span className="capitalize">{goat.gender}</span>
+        </div>
       </div>
     </Link>
   );

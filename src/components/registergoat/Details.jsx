@@ -164,7 +164,7 @@ function Details({ setStep }) {
                       : "bg-gray-100 text-[#4A6741] hover:bg-gray-200 border-gray-300"
                   }`}
               >
-                {isLoading ? <>Fetching...</> : <>🎲 Random</>}
+                {isLoading ? <>Fetching...</> : <>Randomize</>}
               </button>
             </div>
           </div>
