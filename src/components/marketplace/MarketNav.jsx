@@ -7,7 +7,7 @@ function MarketNav() {
     <nav className="h-20 bg-white border-b border-gray-100 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
         {/* Brand */}
-        <Link to="/" className="flex items-center gap-2">
+        <Link to="/market" className="flex items-center gap-2">
           <div className="bg-[#4A6741] p-2 rounded-lg">
             <ShoppingBag className="w-5 h-5 text-white" />
           </div>
@@ -18,17 +18,17 @@ function MarketNav() {
 
         {/* Desktop Links */}
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
-          <Link to="/" className="text-[#4A6741]">
+          <Link to="/market" className="text-[#4A6741]">
             Home
           </Link>
           <Link
-            to="/market/breeds"
+            to="/market/goats"
             className="hover:text-[#4A6741] transition-colors"
           >
-            Breeds
+            Goats
           </Link>
           <Link
-            to="/market/about"
+            to="/market/farms"
             className="hover:text-[#4A6741] transition-colors"
           >
             Farms

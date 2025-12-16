@@ -18,7 +18,7 @@ function Marketplace() {
 
         // Filter: Only show goats that are marked for sale
         const forSale = response.data.filter((g) => g.isForSale === true);
-
+        console.log(forSale);
         setGoats(forSale);
       } catch (error) {
         console.error("Error loading marketplace:", error);
@@ -66,10 +66,10 @@ function Marketplace() {
       <main className="max-w-7xl mx-auto px-4 py-12">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold text-gray-800">Latest Listings</h2>
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:border-[#4A6741] hover:text-[#4A6741] transition-colors bg-white">
+          {/* <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:border-[#4A6741] hover:text-[#4A6741] transition-colors bg-white">
             <Filter className="w-4 h-4" />
             Filter & Sort
-          </button>
+          </button> */}
         </div>
 
         {loading ? (

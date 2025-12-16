@@ -79,6 +79,41 @@ export const api = {
     },
   },
 
+  market: {
+    // Fetch inventory for the Sales page
+    // Note: Reusing get-goats since the inventory is the same source
+    list: async (userId) => {
+      const response = await fetch(`${BASE_URL}/get-goats/${userId}`);
+      return handleResponse(response);
+    },
+
+    // Update listing details (Price, IsForSale status)
+    // We wrap the standard update endpoint to keep semantic clarity
+    updateListing: async (goatId, salesData) => {
+      // salesData usually contains: { price: 123, isForSale: true/false }
+      const response = await fetch(`${BASE_URL}/update-goat/${goatId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(salesData),
+      });
+      return handleResponse(response);
+    },
+  },
+
+  farms: {
+    list: async () => {
+      // This matches the backend endpoint we discussed (/api/farms)
+      const response = await fetch(`${BASE_URL}/api/farms`);
+      return handleResponse(response);
+    },
+    
+    // Optional: Get specific farm details + their goats
+    get: async (farmId) => {
+      const response = await fetch(`${BASE_URL}/api/farms/${farmId}`);
+      return handleResponse(response);
+    }
+  },
+
   // --- PLACEHOLDER FOR FUTURE ENDPOINTS ---
   // goats: { ... },
   // sales: { ... }

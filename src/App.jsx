@@ -11,6 +11,9 @@ import GoatProfile from "./components/goat/GoatProfile";
 import Auth from "./views/Auth";
 import Sales from "./views/Sales";
 import Marketplace from "./views/marketplace/Marketplace";
+import ProductDetails from "./components/marketplace/ProductDetails";
+import Farms from "./views/marketplace/Farms";
+import Goats from "./views/marketplace/Goats";
 
 function App() {
   // 1. Auth State: Check LocalStorage IMMEDIATELY (Lazy Init)
@@ -75,6 +78,9 @@ function App() {
 
           {/* Market Routes */}
           <Route path="/market" element={<Marketplace />} />
+          <Route path="/market/farms" element={<Farms />} />
+          <Route path="/market/goats" element={<Goats />} />
+          <Route path="/market/product/:id" element={<ProductDetails />} />
         </Routes>
       </main>
     </div>

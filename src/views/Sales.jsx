@@ -1,33 +1,58 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
+import React, { useEffect, useState, useCallback } from "react";
 import SalesCard from "../components/sales/SalesCard";
-import { Search, Filter } from "lucide-react";
+import { Search, Filter, RefreshCcw, Sprout, ShoppingBag } from "lucide-react"; // Added ShoppingBag/Sprout
+import { api } from "../lib/data";
 
 function Sales() {
   const [goats, setGoats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // 1. Fetch Goats
-  useEffect(() => {
-    const fetchGoats = async () => {
-      try {
-        const token = localStorage.getItem("user_token");
-        // Using your existing endpoint - we will filter in the UI for now
-        const response = await axios.get("http://localhost:5000/api/goats", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setGoats(response.data);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching inventory:", error);
-        setLoading(false);
-      }
-    };
-    fetchGoats();
+  // Helper to get User ID
+  const getUserId = () => {
+    try {
+      const user = JSON.parse(localStorage.getItem("user_token"));
+      return user ? user._id : null;
+    } catch (e) {
+      console.error("Error parsing user from local storage", e);
+      return null;
+    }
+  };
+
+  // Fetch Market Data
+  const fetchMarketData = useCallback(async () => {
+    const userId = getUserId();
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const data = await api.market.list(userId);
+      setGoats(data);
+    } catch (error) {
+      console.error("Error fetching market inventory:", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // 2. Filter Logic (Search by Name or Tag)
+  // Initial Load
+  useEffect(() => {
+    fetchMarketData();
+  }, [fetchMarketData]);
+
+  // Handle Updates from Child
+  const handleLocalUpdate = (updatedGoat) => {
+    setGoats((prevGoats) =>
+      prevGoats.map((goat) =>
+        goat._id === updatedGoat._id ? updatedGoat : goat
+      )
+    );
+  };
+
+  // Filter Logic
   const filteredGoats = goats.filter((goat) => {
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -38,41 +63,51 @@ function Sales() {
 
   return (
     <div className="min-h-screen bg-[#F5F1E8]">
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-[#4A6741]">
-              Marketplace Inventory
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Manage which goats are visible for sale and set their prices.
-            </p>
-          </div>
-
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search inventory..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 rounded-xl border border-gray-200 focus:border-[#4A6741] focus:ring-1 focus:ring-[#4A6741] outline-none w-full md:w-64 text-sm"
-            />
+      {/* === NEW STICKY HEADER === */}
+      <div className="bg-white border-b-2 border-[#4A6741]/10 sticky top-0 z-10 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row justify-between items-center h-auto md:h-20 py-4 md:py-0 gap-4">
+            {/* Left: Branding & Title */}
+            <div className="flex flex-col">
+              <h1 className="text-2xl font-bold text-[#4A6741] flex items-center gap-2">
+                <ShoppingBag className="w-6 h-6" />{" "}
+                {/* Changed Icon to represent Market */}
+                Marketplace
+              </h1>
+              <p className="text-xs text-[#7A6E5C] font-medium">
+                Manage visible stock & prices
+              </p>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Content Grid */}
+      {/* === MAIN CONTENT === */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {loading ? (
-          <div className="text-center py-20 text-gray-400">
-            Loading inventory...
+          <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4A6741] mb-2"></div>
+            <p>Loading inventory...</p>
+          </div>
+        ) : filteredGoats.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredGoats.map((goat) => (
+              <SalesCard
+                key={goat._id}
+                goat={goat}
+                onUpdate={handleLocalUpdate}
+              />
+            ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-            {filteredGoats.map((goat) => (
-              <SalesCard key={goat._id} goat={goat} />
-            ))}
+          <div className="text-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm">
+            <div className="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+              <Filter className="w-6 h-6 text-gray-400" />
+            </div>
+            <h3 className="text-gray-900 font-medium">No goats found</h3>
+            <p className="text-gray-500 text-sm mt-1">
+              Try adjusting your search terms.
+            </p>
           </div>
         )}
       </main>

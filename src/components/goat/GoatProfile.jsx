@@ -509,7 +509,7 @@ export default function GoatProfile() {
       </div>
 
       {/* Sync Button */}
-      {!isEditing && (
+      {/* {!isEditing && (
         <button
           onClick={() => setShowSyncModal(true)}
           className="w-full bg-[#D4621C] hover:bg-[#b85418] text-white h-12 rounded-xl shadow-lg flex items-center justify-center font-bold text-sm transition-transform active:scale-95"
@@ -517,7 +517,7 @@ export default function GoatProfile() {
           <RefreshCw className="h-4 w-4 mr-2" />
           Sync to Marketplace
         </button>
-      )}
+      )} */}
 
       {/* Modal */}
       {showSyncModal && (
