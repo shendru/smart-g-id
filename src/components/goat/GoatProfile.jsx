@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { api } from "../../lib/data"; // <--- Import API
 import {
   Edit2,
   Save,
@@ -44,21 +45,15 @@ export default function GoatProfile() {
   useEffect(() => {
     const fetchGoat = async () => {
       try {
-        const response = await fetch(`http://10.109.254.1:5000/get-goat/${id}`);
-        const data = await response.json();
+        const data = await api.goats.get(id); // <--- API Call
 
-        if (response.ok) {
-          setProfile(data);
-          // Ensure healthStatus is an array
-          setEditedProfile({
-            ...data,
-            healthStatus: Array.isArray(data.healthStatus)
-              ? data.healthStatus
-              : [data.healthStatus],
-          });
-        } else {
-          console.error("Failed to load profile");
-        }
+        setProfile(data);
+        setEditedProfile({
+          ...data,
+          healthStatus: Array.isArray(data.healthStatus)
+            ? data.healthStatus
+            : [data.healthStatus],
+        });
       } catch (err) {
         console.error("Network Error:", err);
       } finally {
@@ -99,36 +94,28 @@ export default function GoatProfile() {
     try {
       setLoading(true);
 
-      // CHANGE 1: Use a specific update URL with the ID
-      // CHANGE 2: Use PUT instead of POST
-      const response = await fetch(
-        `http://10.109.254.1:5000/update-goat/${id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            ...editedProfile,
-            // usually backend doesn't need owner if it's already there,
-            // but keeping it doesn't hurt.
-            owner: profile.owner,
-          }),
-        }
-      );
+      const updatePayload = {
+        ...editedProfile,
+        owner: profile.owner,
+      };
 
-      const result = await response.json();
+      // <--- API Call
+      const result = await api.goats.update(id, updatePayload);
 
-      if (response.ok) {
+      // Backend returns { goat: ... }
+      if (result.goat) {
         setProfile(result.goat);
         setEditedProfile(result.goat);
         setIsEditing(false);
       } else {
-        alert("Failed to update profile: " + result.error);
+        // Fallback if backend returns the object directly
+        setProfile(result);
+        setEditedProfile(result);
+        setIsEditing(false);
       }
     } catch (err) {
       console.error("Save Error:", err);
-      alert("Network error while saving.");
+      alert("Error saving profile: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -137,7 +124,7 @@ export default function GoatProfile() {
   const handleCancel = () => {
     setEditedProfile(profile);
     setIsEditing(false);
-    setHealthInput(""); // Reset input buffer
+    setHealthInput("");
   };
 
   const handleDelete = async () => {
@@ -151,22 +138,11 @@ export default function GoatProfile() {
 
     try {
       setLoading(true);
-      const response = await fetch(
-        `http://10.109.254.1:5000/delete-goat/${id}`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      if (response.ok) {
-        navigate(-1);
-      } else {
-        alert("Failed to delete goat. Please try again.");
-        setLoading(false);
-      }
+      await api.goats.delete(id); // <--- API Call
+      navigate(-1);
     } catch (error) {
       console.error("Error deleting:", error);
-      alert("Network error occurred.");
+      alert("Failed to delete goat: " + error.message);
       setLoading(false);
     }
   };
@@ -344,7 +320,7 @@ export default function GoatProfile() {
               // --- EDIT MODE ---
               <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
                 <div className="grid grid-cols-2 gap-4">
-                  {/* --- UPDATED BREED SELECT --- */}
+                  {/* --- BREED SELECT --- */}
                   <div className="space-y-2">
                     <label className="block font-medium text-sm text-[#4A6741]">
                       Breed *
@@ -359,7 +335,6 @@ export default function GoatProfile() {
                       }
                       className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A6741] bg-white"
                     >
-                      {/* Only show 'Select...' if there is no breed currently set */}
                       {!editedProfile.breed && (
                         <option value="">Select a breed...</option>
                       )}

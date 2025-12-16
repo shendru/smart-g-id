@@ -1,9 +1,11 @@
 import { useEffect, useState, useRef } from "react";
 import captureGif from "../../assets/capturing.gif";
 import { captureImage } from "../../lib/signal.js";
-import { RefreshCw, CheckCircle, ArrowRight, Loader2 } from "lucide-react";
+import { RefreshCw, ArrowRight, Loader2 } from "lucide-react";
 
-// Helper to pause execution
+// 1. IMPORT YOUR CENTRALIZED API
+import { api } from "../../lib/data.js";
+
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function Capturing({ setStep, saveData }) {
@@ -12,11 +14,12 @@ function Capturing({ setStep, saveData }) {
   const [capturedImages, setCapturedImages] = useState([]);
 
   const [isComplete, setIsComplete] = useState(false);
-  const [isUploading, setIsUploading] = useState(false); // NEW: Loading state for upload
+  const [isUploading, setIsUploading] = useState(false);
   const [retryTrigger, setRetryTrigger] = useState(0);
 
   const hasRun = useRef(false);
 
+  // ... (useEffect logic stays exactly the same) ...
   useEffect(() => {
     if (hasRun.current) return;
     hasRun.current = true;
@@ -26,14 +29,12 @@ function Capturing({ setStep, saveData }) {
         setIsComplete(false);
         const localImages = [];
 
-        // --- LOOP 4 TIMES ---
         for (let i = 1; i <= 4; i++) {
-          // 1. Simulate Machine Movement/Stabilization
           setStatus(`[CoreXY] Aligning Gantry to Vector ${i}/4...`);
-          await wait(1500); // Simulate motor travel time
+          await wait(1500);
 
           setStatus(`Optical Lock Acquired. Capturing Frame ${i}...`);
-          await wait(500); // Short pause for "focus"
+          await wait(500);
 
           try {
             const base64Img = await captureImage();
@@ -44,22 +45,20 @@ function Capturing({ setStep, saveData }) {
             console.error(err);
             setStatus(`[ERR] Sensor Fault on Vector ${i}. Retrying...`);
             await wait(2000);
-            i--; // Decrement to retry this index
+            i--;
             continue;
           }
 
-          // 2. Transit to next position (if not the last one)
           if (i < 4) {
             setStatus(
               `Sequence Pending... Actuating Motors to Quadrant ${i + 1}`
             );
-            await wait(2000); // Time for the machine to move around the goat
+            await wait(2000);
           }
         }
 
         setStatus("Scan Logic Complete. Parking Sensors.");
 
-        // Save locally just in case
         if (saveData) {
           saveData(localImages);
         } else {
@@ -76,7 +75,6 @@ function Capturing({ setStep, saveData }) {
     runSequence();
   }, [saveData, retryTrigger]);
 
-  // --- HANDLERS ---
   const handleRetry = () => {
     setCapturedImages([]);
     setProgress(0);
@@ -86,53 +84,42 @@ function Capturing({ setStep, saveData }) {
     setRetryTrigger((prev) => prev + 1);
   };
 
-  // === THE FINAL SUBMISSION LOGIC ===
+  // === 2. REFACTORED FINISH HANDLER ===
   const handleFinish = async () => {
     setIsUploading(true);
     setStatus("Uploading Data to Server...");
 
     try {
-      // 1. Get Data from LocalStorage
+      // Get Data from LocalStorage
       const registrationData = JSON.parse(
         localStorage.getItem("goat_registration_data") || "{}"
       );
       const userToken = JSON.parse(localStorage.getItem("user_token") || "{}");
 
-      if (!userToken._id) {
-        throw new Error("User not logged in (Missing ID)");
-      }
+      if (!userToken._id) throw new Error("User not logged in (Missing ID)");
 
-      // 2. Construct Payload
+      // Construct Payload
       const payload = {
-        ...registrationData, // Name, Breed, Weight, etc.
-        owner: userToken._id, // Link to the Farmer
-        photos: capturedImages, // The 4 Base64 Images
+        ...registrationData,
+        owner: userToken._id,
+        photos: capturedImages,
       };
 
-      console.log("🚀 Sending Payload:", payload);
+      console.log("🚀 Sending Payload via api.goats.add:", payload);
 
-      // 3. Send to Backend
-      const response = await fetch("http://10.109.254.1:5000/add-goat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Server rejected data");
-      }
+      // --- NEW CLEAN CALL ---
+      // No need to check response.ok or do .json(), data.js does it.
+      const data = await api.goats.add(payload);
 
       console.log("✅ Success:", data);
       setStatus("Upload Successful!");
 
-      // 4. Move to Final Screen
+      // Move to Final Screen
       setStep(5);
     } catch (error) {
       console.error("Upload Error:", error);
       setStatus(`Upload Failed: ${error.message}`);
-      setIsUploading(false); // Re-enable buttons so user can try again
+      setIsUploading(false);
     }
   };
 
@@ -143,8 +130,7 @@ function Capturing({ setStep, saveData }) {
         {!isComplete && (
           <div className="relative mb-6">
             <div
-              className={`absolute -inset-4 border-2 border-dashed border-[#4A6741]/30 rounded-full 
-              ${
+              className={`absolute -inset-4 border-2 border-dashed border-[#4A6741]/30 rounded-full ${
                 status.includes("ROTATE")
                   ? "animate-pulse"
                   : "animate-[spin_10s_linear_infinite]"
@@ -162,12 +148,11 @@ function Capturing({ setStep, saveData }) {
 
         {/* Status Text */}
         <h3
-          className={`font-bold text-xl mb-2 flex items-center gap-2 transition-colors duration-300 text-center
-            ${
-              status.includes("Error") || status.includes("Failed")
-                ? "text-red-500"
-                : "text-[#4A6741]"
-            }`}
+          className={`font-bold text-xl mb-2 flex items-center gap-2 transition-colors duration-300 text-center ${
+            status.includes("Error") || status.includes("Failed")
+              ? "text-red-500"
+              : "text-[#4A6741]"
+          }`}
         >
           {status}
         </h3>
@@ -199,12 +184,11 @@ function Capturing({ setStep, saveData }) {
           {[...Array(4)].map((_, index) => (
             <div
               key={index}
-              className={`aspect-square rounded-md overflow-hidden border-2 flex items-center justify-center bg-gray-50
-                ${
-                  index < capturedImages.length
-                    ? "border-[#4A6741]"
-                    : "border-gray-200 dashed"
-                }`}
+              className={`aspect-square rounded-md overflow-hidden border-2 flex items-center justify-center bg-gray-50 ${
+                index < capturedImages.length
+                  ? "border-[#4A6741]"
+                  : "border-gray-200 dashed"
+              }`}
             >
               {index < capturedImages.length ? (
                 <img
@@ -221,20 +205,16 @@ function Capturing({ setStep, saveData }) {
           ))}
         </div>
 
-        {/* === ACTION BUTTONS === */}
+        {/* Buttons */}
         {isComplete && (
           <div className="flex gap-4 w-full max-w-md animate-in slide-in-from-bottom-4 fade-in">
-            {/* RETRY BUTTON */}
             <button
               onClick={handleRetry}
               disabled={isUploading}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-gray-300 text-gray-600 rounded-xl font-semibold hover:border-gray-400 hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <RefreshCw className="w-5 h-5" />
-              Retake All
+              <RefreshCw className="w-5 h-5" /> Retake All
             </button>
-
-            {/* FINISH BUTTON */}
             <button
               onClick={handleFinish}
               disabled={isUploading}
@@ -242,13 +222,11 @@ function Capturing({ setStep, saveData }) {
             >
               {isUploading ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Saving...
+                  <Loader2 className="w-5 h-5 animate-spin" /> Saving...
                 </>
               ) : (
                 <>
-                  Finish & Save
-                  <ArrowRight className="w-5 h-5" />
+                  <ArrowRight className="w-5 h-5" /> Finish & Save
                 </>
               )}
             </button>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { api } from "../lib/data"; // <--- 1. Import your new centralized file
 import {
   User,
   Lock,
@@ -37,7 +38,7 @@ export default function Auth({ setIsLoggedIn }) {
     setError("");
     setIsLoading(true);
 
-    // 1. Client-Side Validation (Registration Only)
+    // 1. Client-Side Validation (Keep this in UI)
     if (!isLogin) {
       if (formData.password !== formData.confirmPassword) {
         setError("Passwords do not match!");
@@ -52,33 +53,26 @@ export default function Auth({ setIsLoggedIn }) {
     }
 
     try {
-      const endpoint = isLogin ? "login" : "register";
-      const url = `http://10.109.254.1:5000/${endpoint}`;
+      let user;
 
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Something went wrong");
+      // 2. Call the Centralized API
+      if (isLogin) {
+        user = await api.auth.login(formData.email, formData.password);
+      } else {
+        // Pass the whole object for registration
+        user = await api.auth.register({
+          email: formData.email,
+          farmName: formData.farmName,
+          address: formData.address,
+          password: formData.password,
+        });
       }
 
-      console.log("Auth Success:", data);
+      console.log("Auth Success:", user);
 
-      // === DATA NORMALIZATION FIX ===
-      // If Login: data = { status: "ok", user: { ... } }
-      // If Register: data = { email: "...", farmName: "..." }
-      // We want to ensure we always save the USER object, not the wrapper.
-      const userToSave = data.user ? data.user : data;
-
-      // Save standardized user data
-      localStorage.setItem("user_token", JSON.stringify(userToSave));
-
-      // Update State & Redirect
+      // 3. Save & Redirect
+      // Note: We don't need to normalize 'user' here anymore, data.js did it.
+      localStorage.setItem("user_token", JSON.stringify(user));
       setIsLoggedIn(true);
       navigate("/");
     } catch (err) {
@@ -90,6 +84,7 @@ export default function Auth({ setIsLoggedIn }) {
   };
 
   return (
+    // ... (The rest of your UI JSX remains exactly the same) ...
     <div className="w-full min-h-full flex items-center justify-center py-8">
       <div className="w-full md:h-auto md:min-h-[600px] bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col md:flex-row border-2 border-[#4A6741]/10 transition-all duration-500">
         {/* --- LEFT SIDE: Branding --- */}

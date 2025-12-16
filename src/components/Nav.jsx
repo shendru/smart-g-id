@@ -5,8 +5,7 @@ import {
   ScanLine,
   LayoutGrid,
   Store,
-  Activity,
-  Calendar,
+  ShoppingBag, // Import ShoppingBag icon
 } from "lucide-react";
 
 function Nav() {
@@ -22,37 +21,34 @@ function Nav() {
 
   const isActive = (path) => {
     return location.pathname === path
-      ? "bg-[#3A5233] text-white shadow-inner"
-      : "text-[#E6ECD6] hover:bg-[#5C7D52] hover:text-white";
+      ? "bg-[#3A5233] text-white shadow-inner border border-white/10"
+      : "text-[#E6ECD6] hover:bg-[#5C7D52] hover:text-white border border-transparent";
   };
 
   return (
-    <header className="h-[76px] w-full bg-[#4A6741] shadow-lg sticky top-0 z-50">
-      {/* Container needs relative positioning for the absolute center nav to work */}
+    <header className="h-[76px] w-full bg-[#4A6741] border-b border-[#3A5233] shadow-lg sticky top-0 z-50">
       <div className="relative max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
         {/* --- LEFT: BRAND --- */}
-        {/* z-10 ensures this stays clickable above any potential overlaps */}
         <Link to="/" className="flex items-center gap-3 group z-10">
-          <div className="bg-white/10 p-2 rounded-lg group-hover:bg-white/20 transition-colors">
+          <div className="bg-white/10 p-2.5 rounded-xl border border-white/5 group-hover:bg-white/20 transition-all duration-300">
             <ScanLine className="w-6 h-6 text-white" />
           </div>
           <div className="flex flex-col">
-            <h1 className="text-xl font-bold text-white tracking-wide leading-none">
+            <h1 className="text-xl font-bold text-white tracking-wide leading-none drop-shadow-sm">
               Smart G-ID
             </h1>
-            <span className="text-[10px] text-[#E6ECD6] uppercase tracking-wider opacity-80">
+            <span className="text-[10px] text-[#E6ECD6] uppercase tracking-wider opacity-80 font-medium">
               Livestock Tracking
             </span>
           </div>
         </Link>
 
-        {/* --- CENTER: MAIN NAV --- */}
-        {/* Absolute positioning guarantees true center regardless of side element widths */}
+        {/* --- CENTER: MAIN NAV (Admin Tabs) --- */}
         <nav className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex items-center gap-2">
-          {/* ACTIVE: Dashboard */}
+          {/* 1. DASHBOARD */}
           <Link
             to="/"
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium ${isActive(
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all duration-300 text-sm font-bold tracking-wide ${isActive(
               "/"
             )}`}
           >
@@ -60,26 +56,36 @@ function Nav() {
             Dashboard
           </Link>
 
-          {/* DISABLED ITEMS */}
-          <DisabledNavItem
-            icon={<Activity className="w-4 h-4" />}
-            label="Activity Logs"
-          />
-          <DisabledNavItem
-            icon={<Calendar className="w-4 h-4" />}
-            label="Tasks"
-          />
-          <DisabledNavItem
-            icon={<Store className="w-4 h-4" />}
-            label="Marketplace"
-          />
+          {/* 2. SALES */}
+          <Link
+            to="/sales"
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all duration-300 text-sm font-bold tracking-wide ${isActive(
+              "/sales"
+            )}`}
+          >
+            <Store className="w-4 h-4" />
+            Sales
+          </Link>
         </nav>
 
-        {/* --- RIGHT: LOGOUT --- */}
+        {/* --- RIGHT: ACTIONS --- */}
         <div className="flex items-center gap-3 z-10">
+          {/* NEW: Switch to Marketplace View */}
+          <Link
+            to="/market"
+            className="hidden sm:flex items-center gap-2 bg-[#3A5233] hover:bg-[#2F4229] border border-[#3A5233] text-[#E6ECD6] px-4 py-2.5 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg active:scale-95 group"
+            title="View Public Marketplace"
+          >
+            <ShoppingBag className="w-4 h-4" />
+            <span className="text-xs font-bold uppercase tracking-wide">
+              Visit Shop
+            </span>
+          </Link>
+
+          {/* LOGOUT */}
           <button
             onClick={handleLogout}
-            className="flex items-center justify-center bg-[#D4621C] hover:bg-[#B85418] text-white p-2 rounded-lg shadow-md transition-transform active:scale-95 group"
+            className="flex items-center justify-center bg-[#D4621C] hover:bg-[#B85418] border border-[#B85418] text-white p-2.5 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg active:scale-95 group"
             title="Logout"
           >
             <LogOut className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
@@ -87,25 +93,6 @@ function Nav() {
         </div>
       </div>
     </header>
-  );
-}
-
-// --- HELPER COMPONENT FOR DISABLED ITEMS ---
-function DisabledNavItem({ icon, label }) {
-  return (
-    <div className="relative group cursor-not-allowed opacity-50 hover:opacity-60 transition-opacity">
-      <button
-        disabled
-        className="flex items-center gap-2 px-4 py-2 rounded-lg text-[#E6ECD6] text-sm font-medium cursor-not-allowed"
-      >
-        {icon}
-        {label}
-      </button>
-      {/* "Coming Soon" Badge */}
-      <span className="absolute -top-2 -right-1 bg-[#4A6741] border border-[#E6ECD6]/30 text-[#E6ECD6] text-[8px] font-bold px-1.5 py-0.5 rounded-full shadow-sm pointer-events-none">
-        SOON
-      </span>
-    </div>
   );
 }
 

@@ -1,39 +1,57 @@
 import { useState, useEffect } from "react";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+
+// Components
 import Nav from "./components/Nav";
-import { Routes, Route, Navigate } from "react-router-dom";
 
 // Pages
 import Home from "./views/Home";
 import RegisterGoat from "./views/RegisterGoat";
 import GoatProfile from "./components/goat/GoatProfile";
 import Auth from "./views/Auth";
+import Sales from "./views/Sales";
+import Marketplace from "./views/marketplace/Marketplace";
 
 function App() {
-  // 1. Auth State: Check if user is logged in (e.g., check LocalStorage)
-  // For now, we default to false (Not Logged In)
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // 1. Auth State: Check LocalStorage IMMEDIATELY (Lazy Init)
+  // This ensures correct state before the first render
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    // return true;
+    return localStorage.getItem("user_token") !== null;
+  });
 
-  // OPTIONAL: Check for saved login token on app load
+  const location = useLocation();
+  const isMarketRoute = location.pathname.startsWith("/market");
+
+  // Optional: Listen for token changes (if you want logout to update instantly)
   useEffect(() => {
-    const token = localStorage.getItem("user_token"); // or whatever you save
-    if (token) {
-      setIsLoggedIn(true);
-    }
+    const checkToken = () => {
+      const token = localStorage.getItem("user_token");
+      if (!token) setIsLoggedIn(false);
+    };
+    window.addEventListener("storage", checkToken);
+    return () => window.removeEventListener("storage", checkToken);
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {isLoggedIn && <Nav />}
+    <div className="min-h-screen flex flex-col bg-[#F5F1E8]">
+      {/* 2. Show Nav only if Logged In AND not in Market */}
+      {isLoggedIn && !isMarketRoute && <Nav />}
 
       <main
-        className={`flex-1 w-full max-w-4xl mx-auto px-4 py-6 flex flex-col gap-5 ${
-          !isLoggedIn && "justify-center"
+        className={`flex-1 flex flex-col gap-5 ${
+          isMarketRoute
+            ? "w-full p-0" // Market = Full Width
+            : `w-full max-w-4xl mx-auto px-4 py-6 ${
+                !isLoggedIn && "justify-center"
+              }` // Dashboard = Centered
         }`}
       >
         <Routes>
-          {/* 2. CONDITIONAL ROUTING FOR "/" 
-            If logged in -> Show Home
-            If NOT logged in -> Show Auth
+          {/* 3. ROOT ROUTE LOGIC
+             - Path stays "/"
+             - If Logged In -> Show Dashboard (Home)
+             - If Not Logged In -> Show Login (Auth)
           */}
           <Route
             path="/"
@@ -42,11 +60,9 @@ function App() {
             }
           />
 
-          {/* 3. PROTECTED ROUTES 
-            (Optional) If you want to block these pages when logged out, 
-            wrap them like this: 
-            element={isLoggedIn ? <Page /> : <Navigate to="/" />}
-          */}
+          <Route path="/sales" element={<Sales />} />
+
+          {/* Protected Routes: Redirect back to "/" if accessed without login */}
           <Route
             path="/registergoat"
             element={isLoggedIn ? <RegisterGoat /> : <Navigate to="/" />}
@@ -56,6 +72,9 @@ function App() {
             path="/goatprofile/:id"
             element={isLoggedIn ? <GoatProfile /> : <Navigate to="/" />}
           />
+
+          {/* Market Routes */}
+          <Route path="/market" element={<Marketplace />} />
         </Routes>
       </main>
     </div>

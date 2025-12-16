@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { api } from "../lib/data"; // <--- Import API
 import AddGoat from "../components/home/AddGoat";
 import GoatCard from "../components/goat/GoatCard";
 import { Loader2, LayoutGrid, Sprout } from "lucide-react";
@@ -11,48 +12,29 @@ function Home() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchGoats = async () => {
+    const loadDashboard = async () => {
       try {
-        // 1. Get User Data
+        // 1. Get Local Data
         const userTokenStr = localStorage.getItem("user_token");
 
-        // Security check: If no token, redirect to login
-        if (!userTokenStr) {
-          navigate("/login");
-          return;
-        }
-
         const userToken = JSON.parse(userTokenStr);
-        const userId = userToken._id;
-
-        // Set display name (fallback to "Farmer" if no name found)
         setUserName(userToken.name || "Farmer");
 
-        if (!userId) {
-          console.warn("No user ID found in token.");
-          setIsLoading(false);
-          return;
-        }
-
-        // 2. Fetch from Backend
-        const response = await fetch(
-          `http://10.109.254.1:5000/get-goats/${userId}`
-        );
-        const data = await response.json();
-
-        if (response.ok) {
-          setGoats(data);
-        } else {
-          console.error("Failed to fetch goats:", data.error);
+        // 2. Fetch via Centralized API
+        // No more raw fetch calls here!
+        if (userToken._id) {
+          const goatList = await api.goats.list(userToken._id);
+          console.log(goatList);
+          setGoats(goatList);
         }
       } catch (error) {
-        console.error("Network error fetching goats:", error);
+        console.error("Dashboard Load Error:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchGoats();
+    loadDashboard();
   }, [navigate]);
 
   return (
@@ -72,9 +54,8 @@ function Home() {
               </p>
             </div>
 
-            {/* Right: Stats (Logout is now in Nav.jsx) */}
+            {/* Right: Stats */}
             <div className="flex items-center gap-4">
-              {/* Goat Counter Badge */}
               <div className="hidden sm:flex items-center bg-[#F5F1E8] px-3 py-1.5 rounded-full border border-[#4A6741]/20">
                 <LayoutGrid className="w-4 h-4 text-[#4A6741] mr-2" />
                 <span className="text-sm font-bold text-[#4A6741]">
@@ -89,7 +70,6 @@ function Home() {
 
       {/* --- MAIN CONTENT GRID --- */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Loading State */}
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-64 text-[#4A6741]/70">
             <Loader2 className="w-10 h-10 animate-spin mb-3" />
@@ -109,14 +89,14 @@ function Home() {
               </div>
             ))}
 
-            {/* 2. Add Goat Button (Always at the end) */}
+            {/* 2. Add Goat Button */}
             <div className="h-full min-h-[300px]">
               <AddGoat />
             </div>
           </div>
         )}
 
-        {/* Empty State Help Text (Only shows if user has 0 goats) */}
+        {/* Empty State */}
         {!isLoading && goats.length === 0 && (
           <div className="text-center mt-4 text-[#7A6E5C]/60 text-sm">
             You don't have any goats yet. Click the card above to add your first
