@@ -1,16 +1,16 @@
-const BASE_URL = "http://172.21.192.1:5000";
+const BASE_URL = "http://10.109.254.1:5000";
 
 // Helper to handle the response logic repeatedly
 const handleResponse = async (response) => {
   const data = await response.json();
-  
+
   if (!response.ok) {
     throw new Error(data.error || "API Request Failed");
   }
 
   // === CENTRALIZED DATA NORMALIZATION ===
   // We do the cleanup here so the UI doesn't have to worry about it.
-  // If the backend returns { user: ... }, we return that. 
+  // If the backend returns { user: ... }, we return that.
   // If it returns the raw object, we return that.
   return data.user ? data.user : data;
 };
@@ -106,12 +106,12 @@ export const api = {
       const response = await fetch(`${BASE_URL}/api/farms`);
       return handleResponse(response);
     },
-    
+
     // Optional: Get specific farm details + their goats
     get: async (farmId) => {
       const response = await fetch(`${BASE_URL}/api/farms/${farmId}`);
       return handleResponse(response);
-    }
+    },
   },
 
   // --- PLACEHOLDER FOR FUTURE ENDPOINTS ---

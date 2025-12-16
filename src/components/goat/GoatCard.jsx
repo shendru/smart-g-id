@@ -4,17 +4,11 @@ import { ScanFace } from "lucide-react";
 
 // 1. Define your Backend URL here (or import it from a config file)
 // Make sure this matches your backend IP/Port
-const BASE_URL = "http://172.21.192.1:5000";
+const BASE_URL = "http://localhost:5000";
 
 function GoatCard({ goat }) {
   // Helper for Status Badge Colors
   const isHealthy = goat.healthStatus && goat.healthStatus.includes("Healthy");
-  {
-    console.log("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-  }
-  {
-    console.log(goat);
-  }
   // 2. LOGIC: Construct the proper Image URL
   // If the path already starts with 'http', keep it (old data).
   // If it is just a path (e.g., "uploads/img.jpg"), add the BASE_URL in front.
