@@ -9,19 +9,24 @@ const BASE_URL = "http://172.21.192.1:5000";
 function GoatCard({ goat }) {
   // Helper for Status Badge Colors
   const isHealthy = goat.healthStatus && goat.healthStatus.includes("Healthy");
-
+  {
+    console.log("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+  }
+  {
+    console.log(goat);
+  }
   // 2. LOGIC: Construct the proper Image URL
   // If the path already starts with 'http', keep it (old data).
   // If it is just a path (e.g., "uploads/img.jpg"), add the BASE_URL in front.
   let fullImageUrl = null;
-  if (goat.mainPhoto) {
-    if (goat.mainPhoto.startsWith("http")) {
-      fullImageUrl = goat.mainPhoto;
+  if (goat.mainPhotoPath) {
+    if (goat.mainPhotoPath.startsWith("http")) {
+      fullImageUrl = goat.mainPhotoPath;
     } else {
       // Remove leading slash if present to avoid double slashes
-      const cleanPath = goat.mainPhoto.startsWith("/")
-        ? goat.mainPhoto.slice(1)
-        : goat.mainPhoto;
+      const cleanPath = goat.mainPhotoPath.startsWith("/")
+        ? goat.mainPhotoPath.slice(1)
+        : goat.mainPhotoPath;
       fullImageUrl = `${BASE_URL}/${cleanPath}`;
     }
   }
