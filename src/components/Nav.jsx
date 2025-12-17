@@ -15,7 +15,8 @@ function Nav() {
   const handleLogout = () => {
     if (window.confirm("Are you sure you want to log out?")) {
       localStorage.removeItem("user_token");
-      navigate("/");
+      // This goes to "/" AND reloads the page automatically
+      window.location.href = "/";
     }
   };
 

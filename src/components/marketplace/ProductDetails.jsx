@@ -15,6 +15,9 @@ import {
 import { api } from "../../lib/data";
 import MarketNav from "../../components/marketplace/MarketNav";
 
+// 1. Define Backend URL
+const BASE_URL = "http://localhost:5000";
+
 // Placeholder for the Farm Banner
 const FARM_PLACEHOLDER =
   "https://images.unsplash.com/photo-1500595046743-cd271d694d30?q=80&w=1000&auto=format&fit=crop";
@@ -23,17 +26,34 @@ function ProductDetails() {
   const { id } = useParams();
   const [goat, setGoat] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Stores the RAW path (e.g., "uploads/img.jpg")
   const [selectedImage, setSelectedImage] = useState("");
+
+  // --- HELPER: Process Image URL ---
+  const getProcessedUrl = (path) => {
+    if (!path) return null;
+    if (path.startsWith("http")) {
+      return path;
+    }
+    // Remove leading slash to avoid double slashes
+    const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+    return `${BASE_URL}/${cleanPath}`;
+  };
 
   useEffect(() => {
     const fetchGoat = async () => {
       try {
         const data = await api.goats.get(id);
-        console.log("THSSSSSSSSSSSSSSSSSS");
-        console.log(data);
         setGoat(data);
+
+        // Logic: Set initial selected image (Priority: Array[0] -> MainPath -> MainPhoto)
         if (data.images && data.images.length > 0) {
           setSelectedImage(data.images[0]);
+        } else if (data.mainPhotoPath) {
+          setSelectedImage(data.mainPhotoPath);
+        } else if (data.mainPhoto) {
+          setSelectedImage(data.mainPhoto);
         }
       } catch (error) {
         console.error("Failed to load goat:", error);
@@ -65,7 +85,7 @@ function ProductDetails() {
     currency: "PHP",
   }).format(goat.price || 0);
 
-  // Helper to normalize healthStatus to an array for your map function
+  // Helper to normalize healthStatus to an array
   const healthTags = Array.isArray(goat.healthStatus)
     ? goat.healthStatus
     : goat.healthStatus
@@ -103,11 +123,16 @@ function ProductDetails() {
             <div className="aspect-video w-full bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm relative group">
               <img
                 src={
-                  selectedImage ||
+                  getProcessedUrl(selectedImage) || // ✅ Uses the helper function
                   "https://via.placeholder.com/600?text=No+Image"
                 }
                 alt={goat.name}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                onError={(e) => {
+                  e.target.onerror = null; // Prevent infinite loop
+                  e.target.src =
+                    "https://via.placeholder.com/600?text=Image+Error";
+                }}
               />
               <div className="absolute top-4 left-4">
                 <span className="px-3 py-1.5 bg-white/90 backdrop-blur-md rounded-lg text-xs font-bold uppercase tracking-wider text-[#4A6741] shadow-sm">
@@ -122,7 +147,7 @@ function ProductDetails() {
                 {goat.images.map((img, idx) => (
                   <button
                     key={idx}
-                    onClick={() => setSelectedImage(img)}
+                    onClick={() => setSelectedImage(img)} // Sets the raw path
                     className={`relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
                       selectedImage === img
                         ? "border-[#4A6741] ring-2 ring-[#4A6741]/20"
@@ -130,7 +155,7 @@ function ProductDetails() {
                     }`}
                   >
                     <img
-                      src={img}
+                      src={getProcessedUrl(img)} // ✅ Uses the helper function
                       alt="thumb"
                       className="w-full h-full object-cover"
                     />
@@ -182,7 +207,7 @@ function ProductDetails() {
                 <StatItem icon={Store} label="Gender" value={goat.gender} />
               </div>
 
-              {/* ✅ UPDATED: Health Status Section using your specific design */}
+              {/* Health Status Section */}
               <div className="bg-green-50/50 rounded-xl p-4 border border-green-100">
                 <div className="flex items-center gap-2 mb-3">
                   <Activity className="w-4 h-4 text-[#4A6741]" />

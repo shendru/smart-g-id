@@ -9,6 +9,7 @@ const BASE_URL = "http://localhost:5000";
 function GoatCard({ goat }) {
   // Helper for Status Badge Colors
   const isHealthy = goat.healthStatus && goat.healthStatus.includes("Healthy");
+
   // 2. LOGIC: Construct the proper Image URL
   // If the path already starts with 'http', keep it (old data).
   // If it is just a path (e.g., "uploads/img.jpg"), add the BASE_URL in front.

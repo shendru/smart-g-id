@@ -12,13 +12,11 @@ function Marketplace() {
   useEffect(() => {
     const fetchMarketplace = async () => {
       try {
-        // Fetch ALL goats, then filter for "isForSale"
-        // In production, your API should likely have an endpoint like /api/goats/market
+        // Fetch ALL goats
         const response = await axios.get("http://localhost:5000/api/goats");
 
         // Filter: Only show goats that are marked for sale
         const forSale = response.data.filter((g) => g.isForSale === true);
-        console.log(forSale);
         setGoats(forSale);
       } catch (error) {
         console.error("Error loading marketplace:", error);
@@ -66,10 +64,12 @@ function Marketplace() {
       <main className="max-w-7xl mx-auto px-4 py-12">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold text-gray-800">Latest Listings</h2>
-          {/* <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:border-[#4A6741] hover:text-[#4A6741] transition-colors bg-white">
-            <Filter className="w-4 h-4" />
-            Filter & Sort
-          </button> */}
+          <Link
+            to="/market/goats"
+            className="text-sm font-medium text-[#4A6741] hover:underline"
+          >
+            View all listings &rarr;
+          </Link>
         </div>
 
         {loading ? (
@@ -79,7 +79,8 @@ function Marketplace() {
           </div>
         ) : goats.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {goats.map((goat) => (
+            {/* === LIMIT TO 4 CARDS ONLY === */}
+            {goats.slice(0, 4).map((goat) => (
               <MarketCard key={goat._id} goat={goat} />
             ))}
           </div>

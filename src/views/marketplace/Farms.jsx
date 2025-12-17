@@ -68,8 +68,8 @@ function Farms() {
               filteredFarms.map((farm) => (
                 <Link
                   key={farm._id}
-                  to={`/farm/${farm._id}`} // Link to the specific Farm Details page
-                  className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col h-full"
+                  to={`/market/farm/${farm._id}`} // Added /market/ prefix here
+                  className="..."
                 >
                   {/* Card Banner */}
                   <div className="h-24 bg-gray-100 relative overflow-hidden">

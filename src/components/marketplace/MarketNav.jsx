@@ -45,9 +45,6 @@ function MarketNav() {
               className="pl-9 pr-4 py-2 bg-gray-100 rounded-full text-sm outline-none focus:ring-1 focus:ring-[#4A6741]"
             />
           </div>
-          <button className="px-5 py-2 rounded-full bg-[#4A6741] text-white text-sm font-bold shadow-md hover:bg-[#3A5233] transition-all">
-            Sign In
-          </button>
         </div>
       </div>
     </nav>

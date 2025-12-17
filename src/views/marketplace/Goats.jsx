@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, MapPin, Filter, ArrowRight, ChevronDown } from "lucide-react";
+import { Search, ScanFace } from "lucide-react";
 import { api } from "../../lib/data";
 import MarketNav from "../../components/marketplace/MarketNav";
+
+// 1. Define Backend URL
+const BASE_URL = "http://localhost:5000";
 
 function Goats() {
   const [goats, setGoats] = useState([]);
@@ -10,14 +13,15 @@ function Goats() {
 
   // Filter States
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortOption, setSortOption] = useState("newest"); // newest, price-low, price-high
+  const [sortOption, setSortOption] = useState("newest");
 
   useEffect(() => {
     const fetchGoats = async () => {
       try {
-        // Uses your existing endpoint that filters { isForSale: true }
-        const data = await api.goats.list();
-        setGoats(data);
+        const data = await api.market.getAll();
+        // Filter client-side for "isForSale"
+        const forSale = data.filter((g) => g.isForSale === true);
+        setGoats(forSale);
       } catch (error) {
         console.error("Failed to load goats:", error);
       } finally {
@@ -31,23 +35,23 @@ function Goats() {
   const filteredGoats = goats
     .filter((goat) => {
       const term = searchTerm.toLowerCase();
-      return (
-        goat.name.toLowerCase().includes(term) ||
-        goat.breed.toLowerCase().includes(term) ||
-        (goat.farmName && goat.farmName.toLowerCase().includes(term))
-      );
+      const name = goat.name?.toLowerCase() || "";
+      const breed = goat.breed?.toLowerCase() || "";
+      const farm = goat.farmName?.toLowerCase() || "";
+      return name.includes(term) || breed.includes(term) || farm.includes(term);
     })
     .sort((a, b) => {
-      if (sortOption === "price-low") return a.price - b.price;
-      if (sortOption === "price-high") return b.price - a.price;
-      // Default to newest (assuming listedAt exists, otherwise fallback to ID)
-      return new Date(b.listedAt) - new Date(a.listedAt);
+      if (sortOption === "price-low") return (a.price || 0) - (b.price || 0);
+      if (sortOption === "price-high") return (b.price || 0) - (a.price || 0);
+      return (
+        new Date(b.createdAt || b.listedAt) -
+        new Date(a.createdAt || a.listedAt)
+      );
     });
 
   return (
     <div className="min-h-screen bg-[#F9FAFB]">
       <MarketNav />
-
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* === Header & Controls === */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
@@ -56,8 +60,7 @@ function Goats() {
               Browse Goats
             </h1>
             <p className="text-gray-500 mt-2 max-w-xl">
-              Discover healthy, verified goats from local breeders. All listings
-              are vetted for quality and authenticity.
+              Discover healthy, verified goats from local breeders.
             </p>
           </div>
         </div>
@@ -69,20 +72,17 @@ function Goats() {
             <p className="text-gray-500 font-medium">Loading marketplace...</p>
           </div>
         ) : filteredGoats.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {filteredGoats.map((goat) => (
               <GoatCard key={goat._id} goat={goat} />
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-gray-300">
+          <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-gray-300 w-full col-span-full">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-50 mb-4">
               <Search className="w-6 h-6 text-gray-400" />
             </div>
             <h3 className="text-lg font-bold text-gray-900">No goats found</h3>
-            <p className="text-gray-500 mt-1">
-              We couldn't find any listings matching your search.
-            </p>
             <button
               onClick={() => {
                 setSearchTerm("");
@@ -99,78 +99,105 @@ function Goats() {
   );
 }
 
-// Reusable Card Component for Consistency
+// === FIXED GOAT CARD COMPONENT ===
 function GoatCard({ goat }) {
+  // Helper for Status Badge
+  const isHealthy = goat.healthStatus && goat.healthStatus.includes("Healthy");
+
+  // === 1. IMAGE PATH LOGIC ===
+  // We prioritize 'mainPhoto' because that is what your Aggregation returns
+  let rawPath =
+    goat.mainPhoto || // <--- THIS IS THE FIX
+    goat.mainPhotoPath ||
+    (goat.images && goat.images[0]) ||
+    goat.image;
+
+  // Fix Windows Backslashes if present
+  if (rawPath && typeof rawPath === "string") {
+    rawPath = rawPath.replace(/\\/g, "/");
+  }
+
+  // Construct Final URL
+  let fullImageUrl = null;
+  if (rawPath) {
+    if (rawPath.startsWith("http")) {
+      fullImageUrl = rawPath;
+    } else {
+      // Remove leading slash if present
+      const cleanPath = rawPath.startsWith("/") ? rawPath.slice(1) : rawPath;
+      fullImageUrl = `${BASE_URL}/${cleanPath}`;
+    }
+  }
+
+  // Format Price
   const formattedPrice = new Intl.NumberFormat("en-PH", {
     style: "currency",
     currency: "PHP",
     maximumFractionDigits: 0,
-  }).format(goat.price);
+  }).format(goat.price || 0);
 
   return (
     <Link
-      to={`/product/${goat._id}`}
-      className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col overflow-hidden"
+      to={`/market/product/${goat._id}`}
+      className="group relative block w-full aspect-square rounded-xl overflow-hidden shadow-sm hover:shadow-md border border-transparent hover:border-[#4A6741] transition-all duration-300 cursor-pointer bg-gray-100"
     >
-      {/* Image Container */}
-      <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
-        <img
-          src={
-            goat.mainPhoto || "https://via.placeholder.com/400?text=No+Image"
-          }
-          alt={goat.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-        />
-
-        {/* Badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-          <span className="self-start px-2.5 py-1 bg-white/90 backdrop-blur-sm rounded-lg text-xs font-bold text-[#4A6741] shadow-sm uppercase tracking-wide">
-            {goat.breed}
-          </span>
-          {goat.gender && (
-            <span
-              className={`self-start px-2.5 py-1 backdrop-blur-sm rounded-lg text-xs font-bold shadow-sm capitalize 
-              ${
-                goat.gender === "Female"
-                  ? "bg-pink-100/90 text-pink-700"
-                  : "bg-blue-100/90 text-blue-700"
-              }`}
-            >
-              {goat.gender}
-            </span>
-          )}
-        </div>
+      {/* 1. Full Background Image */}
+      <div className="absolute inset-0 w-full h-full">
+        {fullImageUrl ? (
+          <img
+            src={fullImageUrl}
+            alt={goat.name}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            onError={(e) => {
+              // Hide image on error
+              e.target.style.display = "none";
+              // Show placeholder background
+              e.target.parentElement.classList.add(
+                "bg-gray-200",
+                "flex",
+                "items-center",
+                "justify-center"
+              );
+            }}
+          />
+        ) : (
+          // Fallback if no URL
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gray-200 text-gray-400">
+            <ScanFace className="w-8 h-8 mb-1" />
+            <span className="text-[10px]">No Photo</span>
+          </div>
+        )}
       </div>
 
-      {/* Info Content */}
-      <div className="p-4 flex flex-col flex-1">
-        <div className="flex justify-between items-start mb-1">
-          <h3 className="font-bold text-gray-900 text-lg line-clamp-1 group-hover:text-[#4A6741] transition-colors">
-            {goat.name}
-          </h3>
-        </div>
+      {/* 2. Dark Gradient Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-90" />
 
-        {/* Farm / Location Info */}
-        <div className="flex flex-col gap-1 mb-4">
-          <span className="text-xs text-gray-500 font-medium flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
-            {goat.farmName || "Verified Seller"}
-          </span>
-          <div className="flex items-center gap-1 text-gray-400 text-xs">
-            <MapPin className="w-3 h-3" />
-            <span className="truncate">
-              {goat.ownerAddress || "Philippines"}
-            </span>
+      {/* 3. Floating Status Badge */}
+      <div className="absolute top-2 right-2 flex gap-1">
+        <span
+          className={`block w-2.5 h-2.5 rounded-full border border-white shadow-sm ${
+            isHealthy ? "bg-green-500" : "bg-orange-500"
+          }`}
+          title={goat.healthStatus?.[0] || "Unknown"}
+        />
+      </div>
+
+      {/* 4. Floating Details */}
+      <div className="absolute bottom-0 left-0 w-full p-3 flex flex-col justify-end">
+        <div className="flex justify-between items-end">
+          <div>
+            <h4 className="font-bold text-white text-base leading-tight truncate shadow-black drop-shadow-sm">
+              {goat.name}
+            </h4>
+
+            <div className="flex items-center gap-1 text-white/80 text-[10px] font-mono mt-0.5">
+              <span className="truncate max-w-[60px]">{goat.breed}</span>
+              <span>•</span>
+              <span className="capitalize">{goat.gender}</span>
+            </div>
           </div>
-        </div>
 
-        <div className="mt-auto pt-3 border-t border-gray-50 flex items-center justify-between">
-          <span className="text-lg font-bold text-[#4A6741]">
-            {formattedPrice}
-          </span>
-          <span className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 group-hover:bg-[#4A6741] group-hover:text-white transition-colors">
-            <ArrowRight className="w-4 h-4" />
-          </span>
+          <div className="text-white font-bold text-sm">{formattedPrice}</div>
         </div>
       </div>
     </Link>

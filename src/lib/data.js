@@ -1,4 +1,4 @@
-const BASE_URL = "http://10.109.254.1:5000";
+const BASE_URL = "http://10.10.108.187:5000";
 
 // Helper to handle the response logic repeatedly
 const handleResponse = async (response) => {
@@ -80,17 +80,21 @@ export const api = {
   },
 
   market: {
-    // Fetch inventory for the Sales page
-    // Note: Reusing get-goats since the inventory is the same source
+    // 1. Fetch inventory for the specific User (Inventory Page)
     list: async (userId) => {
       const response = await fetch(`${BASE_URL}/get-goats/${userId}`);
       return handleResponse(response);
     },
 
-    // Update listing details (Price, IsForSale status)
-    // We wrap the standard update endpoint to keep semantic clarity
+    // 2. NEW: Fetch ALL goats (Public Marketplace)
+    // No userId required. This hits the endpoint that returns everything.
+    getAll: async () => {
+      const response = await fetch(`${BASE_URL}/goats`);
+      return handleResponse(response);
+    },
+
+    // 3. Update listing details
     updateListing: async (goatId, salesData) => {
-      // salesData usually contains: { price: 123, isForSale: true/false }
       const response = await fetch(`${BASE_URL}/update-goat/${goatId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -109,6 +113,22 @@ export const api = {
 
     // Optional: Get specific farm details + their goats
     get: async (farmId) => {
+      const response = await fetch(`${BASE_URL}/api/farms/${farmId}`);
+      return handleResponse(response);
+    },
+  },
+
+  farms: {
+    // 1. List all farms
+    list: async () => {
+      const response = await fetch(`${BASE_URL}/api/farms`);
+      return handleResponse(response);
+    },
+
+    // 2. Get specific farm details
+    // THIS IS THE MISSING PIECE FOR YOUR STORE.JSX
+    get: async (farmId) => {
+      // Ensure your backend has a route: router.get('/:id', ...)
       const response = await fetch(`${BASE_URL}/api/farms/${farmId}`);
       return handleResponse(response);
     },

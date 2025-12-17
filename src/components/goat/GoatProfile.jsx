@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { api } from "../../lib/data"; // <--- Import API
+import { api } from "../../lib/data";
 import {
   Edit2,
   Save,
@@ -16,6 +16,9 @@ import {
   Loader2,
   Calendar,
 } from "lucide-react";
+
+// 1. Define Backend URL
+const BASE_URL = "http://localhost:5000";
 
 export default function GoatProfile() {
   const { id } = useParams();
@@ -41,11 +44,19 @@ export default function GoatProfile() {
     "Under Observation",
   ];
 
+  // --- HELPER: Process Image URL ---
+  const getProcessedUrl = (path) => {
+    if (!path) return null;
+    if (path.startsWith("http")) return path;
+    const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+    return `${BASE_URL}/${cleanPath}`;
+  };
+
   // --- 1. FETCH DATA ON LOAD ---
   useEffect(() => {
     const fetchGoat = async () => {
       try {
-        const data = await api.goats.get(id); // <--- API Call
+        const data = await api.goats.get(id);
 
         setProfile(data);
         setEditedProfile({
@@ -89,7 +100,7 @@ export default function GoatProfile() {
     }
   };
 
-  // --- MAIN HANDLERS ---
+  // --- MAIN HANDLERS (UPDATED) ---
   const handleSave = async () => {
     try {
       setLoading(true);
@@ -99,20 +110,23 @@ export default function GoatProfile() {
         owner: profile.owner,
       };
 
-      // <--- API Call
       const result = await api.goats.update(id, updatePayload);
 
-      // Backend returns { goat: ... }
-      if (result.goat) {
-        setProfile(result.goat);
-        setEditedProfile(result.goat);
-        setIsEditing(false);
-      } else {
-        // Fallback if backend returns the object directly
-        setProfile(result);
-        setEditedProfile(result);
-        setIsEditing(false);
+      // ✅ FIX: Normalize the response
+      let updatedData = result.goat || result;
+
+      // ✅ FIX: If the backend didn't return images, KEEP the old ones
+      // This prevents the images from disappearing/reloading
+      if (!updatedData.images || updatedData.images.length === 0) {
+        // If current profile has images, inject them into the update
+        if (profile.images && profile.images.length > 0) {
+          updatedData.images = profile.images;
+        }
       }
+
+      setProfile(updatedData);
+      setEditedProfile(updatedData);
+      setIsEditing(false);
     } catch (err) {
       console.error("Save Error:", err);
       alert("Error saving profile: " + err.message);
@@ -127,6 +141,7 @@ export default function GoatProfile() {
     setHealthInput("");
   };
 
+  // --- UPDATED DELETE HANDLER ---
   const handleDelete = async () => {
     if (
       !confirm(
@@ -138,8 +153,9 @@ export default function GoatProfile() {
 
     try {
       setLoading(true);
-      await api.goats.delete(id); // <--- API Call
-      navigate(-1);
+      await api.goats.delete(id);
+
+      navigate("/");
     } catch (error) {
       console.error("Error deleting:", error);
       alert("Failed to delete goat: " + error.message);
@@ -147,7 +163,6 @@ export default function GoatProfile() {
     }
   };
 
-  // Helper alias for JSX readability
   const healthTags = editedProfile?.healthStatus || [];
 
   if (loading) {
@@ -167,7 +182,7 @@ export default function GoatProfile() {
     <div className="space-y-5 pb-20">
       {/* Back Navigation */}
       <button
-        onClick={() => navigate(-1)}
+        onClick={() => navigate("/")}
         className="flex items-center text-[#7A6E5C] hover:text-[#4A6741] transition-colors"
       >
         <ArrowLeft className="w-5 h-5 mr-1" /> Back to Herd
@@ -245,7 +260,7 @@ export default function GoatProfile() {
       </div>
 
       {/* =========================================================
-          CONTAINER 2: IMAGES (View Only)
+          CONTAINER 2: IMAGES (Media Gallery)
          ========================================================= */}
       <div className="bg-white border-2 border-[#4A6741]/20 rounded-xl shadow-md overflow-hidden">
         <div className="p-4 bg-gray-50 border-b border-[#4A6741]/10 flex justify-between items-center">
@@ -260,12 +275,22 @@ export default function GoatProfile() {
               profile.images.map((imgUrl, index) => (
                 <div
                   key={index}
-                  className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group"
+                  className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group bg-gray-100"
                 >
                   <img
-                    src={imgUrl}
+                    src={getProcessedUrl(imgUrl)}
                     alt={`Goat ${index}`}
                     className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                      e.target.parentElement.classList.add(
+                        "flex",
+                        "items-center",
+                        "justify-center",
+                        "bg-gray-200"
+                      );
+                      e.target.parentElement.innerText = "Img Error";
+                    }}
                   />
                 </div>
               ))
@@ -486,11 +511,11 @@ export default function GoatProfile() {
                         <span
                           key={i}
                           className={`px-2 py-1 rounded-full text-xs font-bold 
-                                    ${
-                                      tag === "Healthy"
-                                        ? "bg-green-100 text-green-700"
-                                        : "bg-orange-100 text-orange-700"
-                                    }`}
+                                  ${
+                                    tag === "Healthy"
+                                      ? "bg-green-100 text-green-700"
+                                      : "bg-orange-100 text-orange-700"
+                                  }`}
                         >
                           {tag}
                         </span>
@@ -507,17 +532,6 @@ export default function GoatProfile() {
           </div>
         </div>
       </div>
-
-      {/* Sync Button */}
-      {/* {!isEditing && (
-        <button
-          onClick={() => setShowSyncModal(true)}
-          className="w-full bg-[#D4621C] hover:bg-[#b85418] text-white h-12 rounded-xl shadow-lg flex items-center justify-center font-bold text-sm transition-transform active:scale-95"
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Sync to Marketplace
-        </button>
-      )} */}
 
       {/* Modal */}
       {showSyncModal && (

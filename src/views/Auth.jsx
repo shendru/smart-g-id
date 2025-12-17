@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../lib/data"; // <--- 1. Import your new centralized file
+import { api } from "../lib/data";
 import {
   User,
   Lock,
@@ -11,6 +11,7 @@ import {
   MapPin,
   CheckCircle,
   Loader2,
+  ScanLine, // Added ScanLine icon as it fits "G-ID" well, optional
 } from "lucide-react";
 
 export default function Auth({ setIsLoggedIn }) {
@@ -38,7 +39,7 @@ export default function Auth({ setIsLoggedIn }) {
     setError("");
     setIsLoading(true);
 
-    // 1. Client-Side Validation (Keep this in UI)
+    // 1. Client-Side Validation
     if (!isLogin) {
       if (formData.password !== formData.confirmPassword) {
         setError("Passwords do not match!");
@@ -59,7 +60,6 @@ export default function Auth({ setIsLoggedIn }) {
       if (isLogin) {
         user = await api.auth.login(formData.email, formData.password);
       } else {
-        // Pass the whole object for registration
         user = await api.auth.register({
           email: formData.email,
           farmName: formData.farmName,
@@ -71,7 +71,6 @@ export default function Auth({ setIsLoggedIn }) {
       console.log("Auth Success:", user);
 
       // 3. Save & Redirect
-      // Note: We don't need to normalize 'user' here anymore, data.js did it.
       localStorage.setItem("user_token", JSON.stringify(user));
       setIsLoggedIn(true);
       navigate("/");
@@ -84,7 +83,6 @@ export default function Auth({ setIsLoggedIn }) {
   };
 
   return (
-    // ... (The rest of your UI JSX remains exactly the same) ...
     <div className="w-full min-h-full flex items-center justify-center py-8">
       <div className="w-full md:h-auto md:min-h-[600px] bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col md:flex-row border-2 border-[#4A6741]/10 transition-all duration-500">
         {/* --- LEFT SIDE: Branding --- */}
@@ -104,13 +102,20 @@ export default function Auth({ setIsLoggedIn }) {
 
           <div className="relative z-10">
             <div className="bg-white/20 w-12 h-12 rounded-xl flex items-center justify-center backdrop-blur-sm mb-4 border border-white/30">
+              {/* You can swap Sprout for ScanLine if you prefer a tech look, or keep Sprout */}
               <Sprout className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-2xl font-bold mb-2 leading-tight">
-              Smart Goat <br /> Manager
+
+            {/* UPDATED TITLE HERE */}
+            <h1 className="text-3xl font-bold mb-2 leading-tight">
+              Smart G-ID <br />
+              <span className="text-xl font-medium opacity-90">
+                Livestock Tracking
+              </span>
             </h1>
-            <p className="text-[#F5F1E8]/80 text-sm">
-              Secure livestock tracking for your farm.
+
+            <p className="text-[#F5F1E8]/80 text-sm mt-2">
+              Advanced identification and monitoring for your farm.
             </p>
           </div>
 

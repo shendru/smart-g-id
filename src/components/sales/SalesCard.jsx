@@ -1,43 +1,66 @@
 import React, { useState } from "react";
-import { DollarSign, ScanFace, Loader2 } from "lucide-react";
-import { api } from "../../lib/data"; // Ensure this path matches your file structure
+import { PhilippinePeso, ScanFace, Loader2 } from "lucide-react";
+import { api } from "../../lib/data";
+
+const BASE_URL = "http://localhost:5000";
 
 function SalesCard({ goat, onUpdate }) {
-  // 1. FORMAT INITIAL STATE
+  // --- HELPER: Calculate Image URL Once ---
+  // We define this outside or inside, but we use it to initialize state
+  const getStableImageUrl = (data) => {
+    let targetPath = null;
+
+    if (data.images && data.images.length > 0) {
+      targetPath = data.images[0];
+    } else if (data.mainPhotoPath) {
+      targetPath = data.mainPhotoPath;
+    } else {
+      targetPath = data.mainPhoto;
+    }
+
+    if (!targetPath) return null;
+
+    if (targetPath.startsWith("http")) return targetPath;
+
+    const cleanPath = targetPath.startsWith("/")
+      ? targetPath.slice(1)
+      : targetPath;
+
+    return `${BASE_URL}/${cleanPath}`;
+  };
+
+  // --- STATE ---
   const formatNumber = (num) => {
     if (!num) return "";
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
 
-  // Default to what's in the DB, or reasonable defaults
   const [isListed, setIsListed] = useState(goat.isForSale || false);
   const [price, setPrice] = useState(formatNumber(goat.price || 0));
   const [saving, setSaving] = useState(false);
+
+  // ✅ FIX: Store image in state so it never changes/reloads on prop updates
+  const [stableImage] = useState(() => getStableImageUrl(goat));
 
   // --- SHARED UPDATE FUNCTION ---
   const updateBackend = async (changes) => {
     try {
       setSaving(true);
-      // Call the API
       const updatedGoat = await api.market.updateListing(goat._id, changes);
 
-      // Notify the parent component (Sales.jsx) to update the main list locally
       if (onUpdate) {
         onUpdate(updatedGoat);
       }
       console.log("Success:", updatedGoat);
     } catch (error) {
       console.error("Failed to update listing:", error);
-      // Optional: Revert UI state here if you want to be extra safe
-      // setIsListed(!changes.isForSale);
     } finally {
       setSaving(false);
     }
   };
 
-  // --- HANDLER: PRICE INPUT ---
+  // --- HANDLERS ---
   const handlePriceChange = (e) => {
-    // Standard cleanup for currency inputs
     let rawValue = e.target.value.replace(/[^0-9.]/g, "");
     const parts = rawValue.split(".");
     if (parts.length > 2) {
@@ -47,39 +70,28 @@ function SalesCard({ goat, onUpdate }) {
     setPrice(parts.join("."));
   };
 
-  // --- HANDLER: TOGGLE SALE STATUS ---
   const handleToggle = async () => {
     const newState = !isListed;
+    setIsListed(newState); // Optimistic Update
 
-    // 1. Optimistic UI update (feels instant)
-    setIsListed(newState);
-
-    // 2. Prepare Data
     const cleanPrice = parseFloat(price.replace(/,/g, "")) || 0;
     const updateData = {
       isForSale: newState,
       price: cleanPrice,
     };
 
-    // 3. IMPORTANT: Add timestamp if we are listing it for sale
-    // This allows your Marketplace to sort by "Newest Listed"
     if (newState === true) {
       updateData.listedAt = new Date().toISOString();
     }
 
-    // 4. Send to Backend
     await updateBackend(updateData);
   };
 
-  // --- HANDLER: SAVE PRICE ON BLUR ---
   const handlePriceBlur = async () => {
     const cleanPrice = parseFloat(price.replace(/,/g, "")) || 0;
-
-    // Only hit API if value actually changed
     if (cleanPrice !== goat.price) {
       await updateBackend({
         price: cleanPrice,
-        // We resend current status just to be safe, or just send price
         isForSale: isListed,
       });
     }
@@ -87,7 +99,7 @@ function SalesCard({ goat, onUpdate }) {
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
-      e.target.blur(); // Trigger blur to save
+      e.target.blur();
     }
   };
 
@@ -119,13 +131,23 @@ function SalesCard({ goat, onUpdate }) {
 
       {/* 2. Image Area */}
       <div className="h-32 w-full bg-gray-100 relative">
-        {goat.mainPhoto ? (
+        {/* ✅ Use stableImage state here instead of recalculating */}
+        {stableImage ? (
           <img
-            src={goat.mainPhoto}
+            src={stableImage}
             alt={goat.name}
             className={`w-full h-full object-cover transition-all duration-500 ${
               !isListed ? "grayscale-[0.5]" : ""
             }`}
+            onError={(e) => {
+              e.target.style.display = "none";
+              e.target.parentElement.classList.add(
+                "bg-gray-200",
+                "flex",
+                "items-center",
+                "justify-center"
+              );
+            }}
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50">
@@ -146,7 +168,7 @@ function SalesCard({ goat, onUpdate }) {
         {/* Input Field */}
         <div className="relative group">
           <div className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#4A6741]">
-            <DollarSign className="w-3.5 h-3.5" />
+            <PhilippinePeso className="w-3.5 h-3.5" />
           </div>
           <input
             type="text"
