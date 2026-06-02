@@ -1,4 +1,4 @@
-const BASE_URL = "http://10.10.108.187:5000";
+const BASE_URL = "http://localhost:5001";
 
 // Helper to handle the response logic repeatedly
 const handleResponse = async (response) => {

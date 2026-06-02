@@ -51,7 +51,7 @@ function Capturing({ setStep, saveData }) {
 
           if (i < 4) {
             setStatus(
-              `Sequence Pending... Actuating Motors to Quadrant ${i + 1}`
+              `Sequence Pending... Actuating Motors to Quadrant ${i + 1}`,
             );
             await wait(2000);
           }
@@ -92,7 +92,7 @@ function Capturing({ setStep, saveData }) {
     try {
       // Get Data from LocalStorage
       const registrationData = JSON.parse(
-        localStorage.getItem("goat_registration_data") || "{}"
+        localStorage.getItem("goat_registration_data") || "{}",
       );
       const userToken = JSON.parse(localStorage.getItem("user_token") || "{}");
 
@@ -109,7 +109,18 @@ function Capturing({ setStep, saveData }) {
 
       // --- NEW CLEAN CALL ---
       // No need to check response.ok or do .json(), data.js does it.
-      const data = await api.goats.add(payload);
+      // Temporarily bypass data.js to see the RAW error
+      const response = await fetch("http://localhost:5001/add-goat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
+
+      const data = await response.json();
 
       console.log("✅ Success:", data);
       setStatus("Upload Successful!");
