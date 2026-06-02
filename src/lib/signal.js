@@ -70,7 +70,7 @@ export const waitForSensorData = async (abortSignal) => {
 
         if (data.status === "ok") {
           // 3. Generate the MOCK RFID
-          const mockUid = Math.floor(10000000 + Math.random() * 90000000).toString();
+          const mockUid = Math.floor(100000 + Math.random() * 900000).toString();
           
           console.log(`Signal: Success! Mock UID: ${mockUid}, Real Weight: ${data.weight}`);
 
