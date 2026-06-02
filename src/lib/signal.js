@@ -8,10 +8,10 @@ const SENSOR_IP = "http://10.10.108.237";
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const MOCK_GOAT_IMAGES = [
-  "./assets/goats/goat1.jpg", 
-  "./assets/goats/goat2.jpg", 
-  "./assets/goats/goat3.jpg", 
-  "./assets/goats/goat4.jpg"
+  "/assets/goats/goat1.jpg", 
+  "/assets/goats/goat2.jpg", 
+  "/assets/goats/goat3.jpg", 
+  "/assets/goats/goat4.jpg"
 ];
 // ==========================================
 // CAMERA FUNCTION

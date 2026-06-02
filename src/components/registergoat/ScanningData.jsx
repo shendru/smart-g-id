@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from "react";
 import {
   Loader2,
   CheckCircle2,
-  Ruler,
   Weight,
   ScanLine,
   AlertCircle,
@@ -35,9 +34,8 @@ function ScanningData({ setStep }) {
         console.log("Starting 20s Scan Window...");
 
         // --- PHASE 1: POLLING WITH 20s TIMEOUT ---
-        // We race the polling against a 20-second timer
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Timeout")), 20000)
+          setTimeout(() => reject(new Error("Timeout")), 20000),
         );
 
         const data = await Promise.race([
@@ -45,39 +43,35 @@ function ScanningData({ setStep }) {
           timeoutPromise,
         ]);
 
-        // --- PHASE 2: SAVE DATA ---
+        // --- PHASE 2: SAVE DATA (Height Removed) ---
         console.log("Saving Sensor Data:", data);
         localStorage.setItem(
           "goat_data",
           JSON.stringify({
             uid: data.uid,
             weight: data.weight,
-            height: data.height,
-          })
+          }),
         );
 
-        // --- PHASE 3: ANIMATION ---
+        // --- PHASE 3: FAST ANIMATION ---
+        // Sped up the transitions so the user isn't kept waiting
         setProgress(1);
-        await wait(600);
+        await wait(300); // Fast 300ms transition
         setProgress(2);
-        await wait(600);
-        setProgress(3);
-        await wait(800);
+        await wait(500); // Brief 500ms pause so they can see the final checkmark
 
         // --- PHASE 4: FINISH ---
         setStep(3);
       } catch (err) {
-        // === FIX: IGNORE INTENTIONAL CANCELLATIONS ===
         if (err.message === "Polling cancelled by timeout") {
           console.log(
-            "Cleanup: Polling stopped (React Strict Mode or Unmount)."
+            "Cleanup: Polling stopped (React Strict Mode or Unmount).",
           );
-          return; // Exit without showing error screen
+          return;
         }
 
         console.error("Sync failed:", err);
 
-        // Only show Error Screen if the component is still mounted (signal active)
         if (!currentSignal.aborted) {
           setError(true);
         }
@@ -141,7 +135,7 @@ function ScanningData({ setStep }) {
               {progress === 0 ? "Waiting for Tag Scan..." : "Syncing Data..."}
             </h3>
 
-            {/* Checklist items */}
+            {/* Checklist items (Height removed, only ID and Weight remain) */}
             <div className="w-full space-y-4">
               <div
                 className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-500 ${
@@ -191,32 +185,6 @@ function ScanningData({ setStep }) {
                   </span>
                 </div>
                 {progress >= 2 && (
-                  <CheckCircle2 className="w-5 h-5 text-green-600 animate-in zoom-in" />
-                )}
-              </div>
-
-              <div
-                className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-500 ${
-                  progress >= 3
-                    ? "bg-green-50 border-green-200"
-                    : "bg-gray-50 border-gray-100 opacity-50"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Ruler
-                    className={`w-5 h-5 ${
-                      progress >= 3 ? "text-green-600" : "text-gray-400"
-                    }`}
-                  />
-                  <span
-                    className={`text-sm font-medium ${
-                      progress >= 3 ? "text-green-800" : "text-gray-500"
-                    }`}
-                  >
-                    Height Calibrated
-                  </span>
-                </div>
-                {progress >= 3 && (
                   <CheckCircle2 className="w-5 h-5 text-green-600 animate-in zoom-in" />
                 )}
               </div>
